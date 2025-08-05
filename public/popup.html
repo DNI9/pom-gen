@@ -8,39 +8,128 @@
 </head>
 <body>
     <div class="container">
-        <h1>POM Generator</h1>
-        
-        <div class="api-key-section">
-            <label for="apiKey">Gemini API Key:</label>
-            <input type="password" id="apiKey" placeholder="Enter your Gemini API Key">
-            <button id="saveApiKey">Save</button>
+        <header class="header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M13 7L11 5L2 14V20H8L17 11L15 9M13 7L15.75 4.25C16.141 3.859 16.141 3.228 15.75 2.836L14.164 1.25C13.773 0.859 13.141 0.859 12.75 1.25L10 4M13 7L10 4M8 20V17H5L8 20Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1>POM Generator</h1>
+            </div>
+            <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+                <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </header>
+
+        <div class="card api-key-card">
+            <div class="card-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 2L19 4M19 4L12 11L8 7L3 12V21H12L17 16L21 20M19 4L21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>API Configuration</h2>
+            </div>
+            <div class="input-group">
+                <input type="password" id="apiKey" placeholder="Enter your Gemini API Key" class="input-field">
+                <button id="saveApiKey" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M17 21V13H7V21M7 3V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Save
+                </button>
+            </div>
         </div>
 
-        <div class="controls">
-            <button id="toggleCapture">Start Capturing</button>
+        <div class="card capture-card">
+            <div class="capture-status" id="captureStatus">
+                <div class="status-indicator"></div>
+                <span class="status-text">Ready to capture</span>
+            </div>
+            <button id="toggleCapture" class="btn btn-large btn-capture">
+                <svg class="capture-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+                <span>Start Capturing</span>
+            </button>
         </div>
 
-        <div class="elements-list-container">
-            <h2>Captured Elements</h2>
-            <ul id="elementsList">
-                <!-- Elements will be dynamically inserted here -->
-            </ul>
+        <div class="card elements-card">
+            <div class="card-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M9 9H15M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <h2>Captured Elements</h2>
+                <span class="element-count" id="elementCount">0</span>
+            </div>
+            <div class="elements-list-container">
+                <ul id="elementsList" class="elements-list">
+                    <li class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.3">
+                            <path d="M13 16H12V12H11M12 8H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <p>No elements captured yet</p>
+                        <p class="text-muted">Click "Start Capturing" and select elements on the page</p>
+                    </li>
+                </ul>
+            </div>
         </div>
 
-        <div class="generation-section">
-            <label for="languageSelect">Language:</label>
-            <select id="languageSelect">
-                <option value="Java">Java</option>
-                <option value="JavaScript">JavaScript</option>
-                <option value="TypeScript">TypeScript</option>
-            </select>
-            <button id="generatePom">Generate POM</button>
+        <div class="card generation-card">
+            <div class="card-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2L9 7L14 12M10 2L5 7L10 12M20 8V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>Code Generation</h2>
+            </div>
+            <div class="generation-controls">
+                <div class="select-wrapper">
+                    <select id="languageSelect" class="select-field">
+                        <option value="Java">Java</option>
+                        <option value="JavaScript">JavaScript</option>
+                        <option value="TypeScript">TypeScript</option>
+                    </select>
+                    <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <button id="generatePom" class="btn btn-primary btn-generate" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M13 2L3 14L12 13L11 22L21 10L12 11L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Generate POM
+                </button>
+            </div>
         </div>
 
-        <div class="output-section">
-            <h2>Generated Code</h2>
-            <pre><code id="outputCode"></code></pre>
-            <button id="downloadCode" disabled>Download File</button>
+        <div class="card output-card" id="outputCard" style="display: none;">
+            <div class="card-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M16 18L22 12L16 6M8 6L2 12L8 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>Generated Code</h2>
+                <button id="copyCode" class="btn btn-icon" title="Copy to clipboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="code-container">
+                <pre><code id="outputCode"></code></pre>
+            </div>
+            <button id="downloadCode" class="btn btn-secondary btn-block">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Download File
+            </button>
         </div>
     </div>
     <script src="popup.js"></script>

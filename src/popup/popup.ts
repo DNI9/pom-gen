@@ -4,6 +4,7 @@ let isCapturing = false;
 let capturedElements: CapturedElement[] = [];
 let currentTab: chrome.tabs.Tab;
 
+// DOM Elements
 const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const saveApiKeyBtn = document.getElementById('saveApiKey') as HTMLButtonElement;
 const toggleCaptureBtn = document.getElementById('toggleCapture') as HTMLButtonElement;
@@ -12,11 +13,22 @@ const languageSelect = document.getElementById('languageSelect') as HTMLSelectEl
 const generatePomBtn = document.getElementById('generatePom') as HTMLButtonElement;
 const outputCode = document.getElementById('outputCode') as HTMLElement;
 const downloadCodeBtn = document.getElementById('downloadCode') as HTMLButtonElement;
+const themeToggleBtn = document.getElementById('themeToggle') as HTMLButtonElement;
+const captureStatus = document.getElementById('captureStatus') as HTMLElement;
+const elementCount = document.getElementById('elementCount') as HTMLElement;
+const outputCard = document.getElementById('outputCard') as HTMLElement;
+const copyCodeBtn = document.getElementById('copyCode') as HTMLButtonElement;
 
 // Initialize popup state
 document.addEventListener('DOMContentLoaded', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     currentTab = tab;
+
+    // Load theme preference
+    const { theme } = await chrome.storage.local.get('theme');
+    if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
 
     // Load API Key
     const { apiKey } = await chrome.storage.local.get('apiKey');
@@ -26,8 +38,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load capturing state
     const { capturing } = await chrome.storage.local.get('capturing');
-    isCapturing = capturing;
-    updateToggleButton();
+    isCapturing = capturing || false;
+    updateCaptureUI();
 
     // Load elements for the current tab
     loadElementsForCurrentUrl();
@@ -48,15 +60,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Event Listeners
+themeToggleBtn.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    chrome.storage.local.set({ theme: newTheme });
+});
+
 saveApiKeyBtn.addEventListener('click', () => {
     chrome.storage.local.set({ apiKey: apiKeyInput.value });
-    alert('API Key saved!');
+    
+    // Show success feedback
+    saveApiKeyBtn.textContent = 'Saved!';
+    saveApiKeyBtn.classList.add('api-key-saved');
+    
+    setTimeout(() => {
+        saveApiKeyBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M17 21V13H7V21M7 3V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Save
+        `;
+        saveApiKeyBtn.classList.remove('api-key-saved');
+    }, 2000);
 });
 
 toggleCaptureBtn.addEventListener('click', async () => {
     isCapturing = !isCapturing;
     await chrome.storage.local.set({ capturing: isCapturing });
-    updateToggleButton();
+    updateCaptureUI();
     
     if (isCapturing) {
         chrome.scripting.executeScript({
@@ -73,6 +106,7 @@ generatePomBtn.addEventListener('click', () => {
     
     outputCode.textContent = 'Generating...';
     generatePomBtn.disabled = true;
+    outputCard.style.display = 'block';
 
     chrome.runtime.sendMessage({
         type: 'GENERATE_POM',
@@ -90,6 +124,32 @@ generatePomBtn.addEventListener('click', () => {
         }
         generatePomBtn.disabled = false;
     });
+});
+
+copyCodeBtn.addEventListener('click', async () => {
+    const code = outputCode.textContent || '';
+    
+    try {
+        await navigator.clipboard.writeText(code);
+        
+        // Show success feedback
+        copyCodeBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        
+        setTimeout(() => {
+            copyCodeBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            `;
+        }, 2000);
+    } catch (err) {
+        console.error('Failed to copy code:', err);
+    }
 });
 
 downloadCodeBtn.addEventListener('click', () => {
@@ -113,13 +173,20 @@ downloadCodeBtn.addEventListener('click', () => {
 
 
 // Functions
-function updateToggleButton() {
+function updateCaptureUI() {
+    const statusText = captureStatus.querySelector('.status-text') as HTMLElement;
+    const captureButtonText = toggleCaptureBtn.querySelector('span') as HTMLElement;
+    
     if (isCapturing) {
-        toggleCaptureBtn.textContent = 'Stop Capturing';
+        document.body.classList.add('capturing');
         toggleCaptureBtn.classList.add('capturing');
+        captureButtonText.textContent = 'Stop Capturing';
+        statusText.textContent = 'Capturing elements...';
     } else {
-        toggleCaptureBtn.textContent = 'Start Capturing';
+        document.body.classList.remove('capturing');
         toggleCaptureBtn.classList.remove('capturing');
+        captureButtonText.textContent = 'Start Capturing';
+        statusText.textContent = 'Ready to capture';
     }
 }
 
@@ -131,7 +198,29 @@ async function loadElementsForCurrentUrl() {
 }
 
 function renderElements() {
+    // Update element count
+    elementCount.textContent = capturedElements.length.toString();
+    
+    // Enable/disable generate button
+    generatePomBtn.disabled = capturedElements.length === 0;
+    
     elementsList.innerHTML = '';
+    
+    if (capturedElements.length === 0) {
+        // Show empty state
+        const emptyState = document.createElement('li');
+        emptyState.className = 'empty-state';
+        emptyState.innerHTML = `
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.3">
+                <path d="M13 16H12V12H11M12 8H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p>No elements captured yet</p>
+            <p class="text-muted">Click "Start Capturing" and select elements on the page</p>
+        `;
+        elementsList.appendChild(emptyState);
+        return;
+    }
+    
     capturedElements.forEach((el, index) => {
         const listItem = document.createElement('li');
         
@@ -150,7 +239,8 @@ function renderElements() {
         selectorSpan.title = el.selector;
 
         const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'X';
+        deleteBtn.textContent = '×';
+        deleteBtn.title = 'Remove element';
         deleteBtn.addEventListener('click', () => {
             capturedElements.splice(index, 1);
             saveElements();
