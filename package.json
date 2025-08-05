@@ -1,0 +1,22 @@
+{
+  "name": "pom-generator",
+  "version": "1.0.0",
+  "description": "A Chrome extension to generate Page Object Models using the Gemini API.",
+  "private": true,
+  "scripts": {
+    "watch": "webpack --mode=development --watch",
+    "build": "webpack --mode=production",
+    "lint": "eslint 'src/**/*.{ts,tsx}'"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.251",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.55.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  }
+} 

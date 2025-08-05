@@ -1,0 +1,106 @@
+import { CapturedElement, Language } from '../shared/types';
+
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request.type === 'GENERATE_POM') {
+        const { elements, language, pageName } = request.payload;
+        generatePom(elements, language, pageName)
+            .then(code => sendResponse({ code }))
+            .catch(error => sendResponse({ error: error.message }));
+        return true; // Indicates that the response is sent asynchronously
+    }
+});
+
+async function generatePom(elements: CapturedElement[], language: Language, pageName: string): Promise<string> {
+    const { apiKey } = await chrome.storage.local.get('apiKey');
+    if (!apiKey) {
+        throw new Error('API Key not found. Please set it in the extension popup.');
+    }
+
+    const prompt = createPrompt(elements, language, pageName);
+    
+    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+    try {
+        const response = await fetch(`${API_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: prompt }]
+                }]
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            console.error('Gemini API Error:', errorBody);
+            throw new Error(`API request failed with status ${response.status}: ${errorBody.error?.message || 'Unknown error'}`);
+        }
+
+        const data = await response.json();
+        
+        // Extract text from the response
+        const code = data.candidates[0]?.content?.parts[0]?.text || '';
+        
+        // Clean up the response, removing markdown backticks if present
+        return code.replace(/```(java|javascript|typescript|)\n/g, '').replace(/```\n/g, '').replace(/```/g, '').trim();
+
+    } catch (error) {
+        console.error('Failed to generate POM:', error);
+        throw new Error('Failed to connect to the Gemini API. Check your network connection and API key.');
+    }
+}
+
+function createPrompt(elements: CapturedElement[], language: Language, pageName: string): string {
+    const elementsJson = JSON.stringify(
+        elements.reduce((obj, item) => {
+            obj[item.name] = item.selector;
+            return obj;
+        }, {} as Record<string, string>),
+        null, 2
+    );
+
+    let instructions = '';
+    switch (language) {
+        case 'Java':
+            instructions = `
+- The class name should be \`${pageName}Page\`.
+- Use Selenium WebDriver and the PageFactory pattern.
+- For each element, create a private \`WebElement\` field with an \`@FindBy\` annotation using its CSS selector.
+- For each element, generate a public method to interact with it (e.g., \`clickLoginButton()\`, \`enterUsername(String username)\`).
+- Ensure all necessary imports (\`org.openqa.selenium.*\`) are included.`;
+            break;
+        case 'JavaScript':
+            instructions = `
+- The class name should be \`${pageName}Page\`.
+- Use a common test framework syntax like WebdriverIO or Cypress.
+- Create a getter for each element that returns a selector object (e.g., \`get usernameInput() { return $('${'selector'}'); }\`).
+- Generate methods for interaction (e.g., \`async login(user, pass)\`).`;
+            break;
+        case 'TypeScript':
+            instructions = `
+- The class name should be \`${pageName}Page\`.
+- Use Playwright or a similar modern framework.
+- The class should have a private readonly \`page\` property of type \`Page\`.
+- For each element, create a private readonly locator property (e.g., \`private readonly usernameInput = this.page.locator('${'selector'}');\`).
+- Generate public async methods for interactions (e.g., \`async enterUsername(username: string): Promise<void>\`).
+- Include the necessary import for \`Page\` from \`@playwright/test\`.`;
+            break;
+    }
+
+    return `
+You are an expert test automation engineer. Your task is to generate a Page Object Model (POM) class in ${language}.
+
+**Page Name:** ${pageName}
+
+**Elements (JSON format of 'elementName': 'selector'):**
+${elementsJson}
+
+**Instructions for ${language}:**
+${instructions}
+
+Generate only the code for the class file. Do not include any explanations, comments, or markdown formatting outside of the code itself.
+    `;
+} 
