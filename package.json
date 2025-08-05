@@ -4,7 +4,7 @@
   "description": "A Chrome extension to generate Page Object Models using the Gemini API.",
   "private": true,
   "scripts": {
-    "watch": "webpack --mode=development --watch",
+    "dev": "webpack --mode=development --watch",
     "build": "webpack --mode=production",
     "lint": "eslint 'src/**/*.{ts,tsx}'"
   },

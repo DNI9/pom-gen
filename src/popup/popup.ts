@@ -19,6 +19,7 @@ const elementCount = document.getElementById('elementCount') as HTMLElement;
 const outputCard = document.getElementById('outputCard') as HTMLElement;
 const copyCodeBtn = document.getElementById('copyCode') as HTMLButtonElement;
 const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
+const resetElementsBtn = document.getElementById('resetElements') as HTMLButtonElement;
 
 // Get API key card element
 const apiKeyCard = document.querySelector('.api-key-card') as HTMLElement;
@@ -83,6 +84,32 @@ settingsBtn.addEventListener('click', async () => {
     } else {
         apiKeyCard.style.display = 'none';
     }
+});
+
+resetElementsBtn.addEventListener('click', async () => {
+    // Confirm before resetting
+    if (capturedElements.length > 0) {
+        const confirmReset = confirm(`Are you sure you want to reset all ${capturedElements.length} captured elements?`);
+        if (!confirmReset) {
+            return;
+        }
+    }
+    
+    // Clear captured elements
+    capturedElements = [];
+    
+    // Update storage to remove elements for current URL
+    chrome.storage.local.get('elements', (data) => {
+        const allElements = data.elements || {};
+        delete allElements[currentTab.url!];
+        chrome.storage.local.set({ elements: allElements });
+    });
+    
+    // Re-render the elements list
+    renderElements();
+    
+    // Hide output card if it's visible
+    outputCard.style.display = 'none';
 });
 
 themeToggleBtn.addEventListener('click', () => {

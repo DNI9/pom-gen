@@ -361,6 +361,15 @@ body.capturing .status-indicator {
     font-weight: 600;
 }
 
+.card-header .reset-btn {
+    margin-left: auto;
+}
+
+.reset-btn:hover {
+    background-color: var(--danger);
+    color: white;
+}
+
 .elements-list-container {
     max-height: 200px;
     overflow-y: auto;
