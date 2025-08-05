@@ -2,21 +2,21 @@ import { CapturedElement, Language } from '../shared/types';
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.type === 'GENERATE_POM') {
-        const { elements, language, pageName } = request.payload;
-        generatePom(elements, language, pageName)
+        const { elements, language, pageName, customGuidelines } = request.payload;
+        generatePom(elements, language, pageName, customGuidelines)
             .then(code => sendResponse({ code }))
             .catch(error => sendResponse({ error: error.message }));
         return true; // Indicates that the response is sent asynchronously
     }
 });
 
-async function generatePom(elements: CapturedElement[], language: Language, pageName: string): Promise<string> {
+async function generatePom(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string): Promise<string> {
     const { apiKey } = await chrome.storage.local.get('apiKey');
     if (!apiKey) {
         throw new Error('API Key not found. Please set it in the extension popup.');
     }
 
-    const prompt = createPrompt(elements, language, pageName);
+    const prompt = createPrompt(elements, language, pageName, customGuidelines);
     
     const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
@@ -53,7 +53,7 @@ async function generatePom(elements: CapturedElement[], language: Language, page
     }
 }
 
-function createPrompt(elements: CapturedElement[], language: Language, pageName: string): string {
+function createPrompt(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string): string {
     const elementsJson = JSON.stringify(
         elements.reduce((obj, item) => {
             obj[item.name] = item.selector;
@@ -63,31 +63,37 @@ function createPrompt(elements: CapturedElement[], language: Language, pageName:
     );
 
     let instructions = '';
-    switch (language) {
-        case 'Java':
-            instructions = `
+    
+    // Use custom guidelines if provided, otherwise use default instructions
+    if (customGuidelines && customGuidelines.trim()) {
+        instructions = customGuidelines;
+    } else {
+        switch (language) {
+            case 'Java':
+                instructions = `
 - The class name should be \`${pageName}Page\`.
 - Use Selenium WebDriver and the PageFactory pattern.
 - For each element, create a private \`WebElement\` field with an \`@FindBy\` annotation using its CSS selector.
 - For each element, generate a public method to interact with it (e.g., \`clickLoginButton()\`, \`enterUsername(String username)\`).
 - Ensure all necessary imports (\`org.openqa.selenium.*\`) are included.`;
-            break;
-        case 'JavaScript':
-            instructions = `
+                break;
+            case 'JavaScript':
+                instructions = `
 - The class name should be \`${pageName}Page\`.
 - Use a common test framework syntax like WebdriverIO or Cypress.
 - Create a getter for each element that returns a selector object (e.g., \`get usernameInput() { return $('${'selector'}'); }\`).
 - Generate methods for interaction (e.g., \`async login(user, pass)\`).`;
-            break;
-        case 'TypeScript':
-            instructions = `
+                break;
+            case 'TypeScript':
+                instructions = `
 - The class name should be \`${pageName}Page\`.
 - Use Playwright or a similar modern framework.
 - The class should have a private readonly \`page\` property of type \`Page\`.
 - For each element, create a private readonly locator property (e.g., \`private readonly usernameInput = this.page.locator('${'selector'}');\`).
 - Generate public async methods for interactions (e.g., \`async enterUsername(username: string): Promise<void>\`).
 - Include the necessary import for \`Page\` from \`@playwright/test\`.`;
-            break;
+                break;
+        }
     }
 
     return `

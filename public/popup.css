@@ -583,4 +583,76 @@ body.capturing .status-indicator {
     background-color: var(--success-light);
     color: var(--success);
     animation: slideIn 0.3s ease-out;
+}
+
+/* Custom Guidelines Section */
+.custom-guidelines-toggle {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.custom-guidelines-toggle:hover {
+    background-color: var(--bg-secondary);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.custom-guidelines-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+    animation: slideIn 0.3s ease-out;
+}
+
+.guidelines-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.guidelines-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+.guidelines-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background-color: var(--bg-primary);
+}
+
+.guidelines-textarea::placeholder {
+    color: var(--text-muted);
+    font-family: inherit;
+}
+
+#saveGuidelines {
+    margin-top: 8px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
 } 

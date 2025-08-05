@@ -11,6 +11,7 @@ export interface GeneratePomRequest {
     elements: CapturedElement[];
     language: Language;
     pageName: string;
+    customGuidelines?: string; // Add support for custom guidelines
   };
 }
 

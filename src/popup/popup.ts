@@ -21,6 +21,12 @@ const copyCodeBtn = document.getElementById('copyCode') as HTMLButtonElement;
 const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const resetElementsBtn = document.getElementById('resetElements') as HTMLButtonElement;
 
+// Custom guidelines elements
+const customGuidelinesToggle = document.getElementById('customGuidelinesToggle') as HTMLButtonElement;
+const customGuidelinesSection = document.getElementById('customGuidelinesSection') as HTMLElement;
+const customGuidelinesTextarea = document.getElementById('customGuidelines') as HTMLTextAreaElement;
+const saveGuidelinesBtn = document.getElementById('saveGuidelines') as HTMLButtonElement;
+
 // Get API key card element
 const apiKeyCard = document.querySelector('.api-key-card') as HTMLElement;
 
@@ -50,6 +56,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { capturing } = await chrome.storage.local.get('capturing');
     isCapturing = capturing || false;
     updateCaptureUI();
+
+    // Load custom guidelines
+    const { customGuidelines } = await chrome.storage.local.get('customGuidelines');
+    if (customGuidelines) {
+        customGuidelinesTextarea.value = customGuidelines;
+    }
 
     // Load elements for the current tab
     loadElementsForCurrentUrl();
@@ -158,9 +170,12 @@ toggleCaptureBtn.addEventListener('click', async () => {
     window.close();
 });
 
-generatePomBtn.addEventListener('click', () => {
+generatePomBtn.addEventListener('click', async () => {
     const language = languageSelect.value as Language;
     const pageName = currentTab.url!.split('/').pop()?.split('.')[0] || 'MyPage';
+    
+    // Get custom guidelines if available
+    const { customGuidelines } = await chrome.storage.local.get('customGuidelines');
     
     outputCode.textContent = 'Generating...';
     generatePomBtn.disabled = true;
@@ -172,6 +187,7 @@ generatePomBtn.addEventListener('click', () => {
             elements: capturedElements,
             language,
             pageName: toPascalCase(pageName),
+            customGuidelines: customGuidelines || undefined,
         },
     }, (response) => {
         if (response.error) {
@@ -227,6 +243,33 @@ downloadCodeBtn.addEventListener('click', () => {
     a.download = `${toPascalCase(pageName)}Page.${extension}`;
     a.click();
     URL.revokeObjectURL(url);
+});
+
+// Custom guidelines event listeners
+customGuidelinesToggle.addEventListener('click', () => {
+    const isVisible = customGuidelinesSection.style.display !== 'none';
+    customGuidelinesSection.style.display = isVisible ? 'none' : 'block';
+    
+    if (!isVisible) {
+        customGuidelinesTextarea.focus();
+    }
+});
+
+saveGuidelinesBtn.addEventListener('click', async () => {
+    const guidelines = customGuidelinesTextarea.value.trim();
+    
+    // Save to storage
+    await chrome.storage.local.set({ customGuidelines: guidelines });
+    
+    // Show success feedback
+    const originalText = saveGuidelinesBtn.textContent;
+    saveGuidelinesBtn.textContent = 'Saved!';
+    saveGuidelinesBtn.classList.add('api-key-saved');
+    
+    setTimeout(() => {
+        saveGuidelinesBtn.textContent = originalText!;
+        saveGuidelinesBtn.classList.remove('api-key-saved');
+    }, 1500);
 });
 
 
