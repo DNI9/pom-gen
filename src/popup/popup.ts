@@ -18,6 +18,10 @@ const captureStatus = document.getElementById('captureStatus') as HTMLElement;
 const elementCount = document.getElementById('elementCount') as HTMLElement;
 const outputCard = document.getElementById('outputCard') as HTMLElement;
 const copyCodeBtn = document.getElementById('copyCode') as HTMLButtonElement;
+const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
+
+// Get API key card element
+const apiKeyCard = document.querySelector('.api-key-card') as HTMLElement;
 
 // Initialize popup state
 document.addEventListener('DOMContentLoaded', async () => {
@@ -30,10 +34,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.documentElement.setAttribute('data-theme', 'dark');
     }
 
-    // Load API Key
+    // Load API Key and handle visibility
     const { apiKey } = await chrome.storage.local.get('apiKey');
     if (apiKey) {
-        apiKeyInput.value = apiKey;
+        // Hide API key card if key already exists
+        apiKeyCard.style.display = 'none';
+    } else {
+        // Show API key card and focus on input
+        apiKeyCard.style.display = 'block';
+        apiKeyInput.focus();
     }
 
     // Load capturing state
@@ -60,6 +69,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Event Listeners
+settingsBtn.addEventListener('click', async () => {
+    // Toggle API key card visibility
+    if (apiKeyCard.style.display === 'none') {
+        apiKeyCard.style.display = 'block';
+        
+        // Load current API key if it exists
+        const { apiKey } = await chrome.storage.local.get('apiKey');
+        if (apiKey) {
+            apiKeyInput.value = apiKey;
+        }
+        apiKeyInput.focus();
+    } else {
+        apiKeyCard.style.display = 'none';
+    }
+});
+
 themeToggleBtn.addEventListener('click', () => {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -68,22 +93,28 @@ themeToggleBtn.addEventListener('click', () => {
 });
 
 saveApiKeyBtn.addEventListener('click', () => {
-    chrome.storage.local.set({ apiKey: apiKeyInput.value });
+    const apiKeyValue = apiKeyInput.value.trim();
+    
+    // Only save if API key is not empty
+    if (!apiKeyValue) {
+        apiKeyInput.focus();
+        return;
+    }
+    
+    chrome.storage.local.set({ apiKey: apiKeyValue });
     
     // Show success feedback
+    const originalContent = saveApiKeyBtn.innerHTML;
     saveApiKeyBtn.textContent = 'Saved!';
     saveApiKeyBtn.classList.add('api-key-saved');
     
     setTimeout(() => {
-        saveApiKeyBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M17 21V13H7V21M7 3V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Save
-        `;
+        // Hide the API key card after saving
+        apiKeyCard.style.display = 'none';
+        // Restore button content
+        saveApiKeyBtn.innerHTML = originalContent;
         saveApiKeyBtn.classList.remove('api-key-saved');
-    }, 2000);
+    }, 1500);
 });
 
 toggleCaptureBtn.addEventListener('click', async () => {

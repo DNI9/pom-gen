@@ -103,6 +103,33 @@ body {
     background-clip: text;
 }
 
+/* Header controls */
+.header-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Settings button */
+.settings-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    color: var(--text-primary);
+}
+
+.settings-btn:hover {
+    background-color: var(--bg-tertiary);
+    transform: scale(1.05);
+}
+
 /* Theme toggle */
 .theme-toggle {
     width: 40px;
