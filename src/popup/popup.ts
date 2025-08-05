@@ -13,7 +13,6 @@ const languageSelect = document.getElementById('languageSelect') as HTMLSelectEl
 const generatePomBtn = document.getElementById('generatePom') as HTMLButtonElement;
 const outputCode = document.getElementById('outputCode') as HTMLElement;
 const downloadCodeBtn = document.getElementById('downloadCode') as HTMLButtonElement;
-const themeToggleBtn = document.getElementById('themeToggle') as HTMLButtonElement;
 const captureStatus = document.getElementById('captureStatus') as HTMLElement;
 const elementCount = document.getElementById('elementCount') as HTMLElement;
 const outputCard = document.getElementById('outputCard') as HTMLElement;
@@ -34,12 +33,6 @@ const apiKeyCard = document.querySelector('.api-key-card') as HTMLElement;
 document.addEventListener('DOMContentLoaded', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     currentTab = tab;
-
-    // Load theme preference
-    const { theme } = await chrome.storage.local.get('theme');
-    if (theme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-    }
 
     // Load API Key and handle visibility
     const { apiKey } = await chrome.storage.local.get('apiKey');
@@ -122,13 +115,6 @@ resetElementsBtn.addEventListener('click', async () => {
     
     // Hide output card if it's visible
     outputCard.style.display = 'none';
-});
-
-themeToggleBtn.addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    chrome.storage.local.set({ theme: newTheme });
 });
 
 saveApiKeyBtn.addEventListener('click', () => {

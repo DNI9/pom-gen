@@ -29,21 +29,6 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark theme */
-[data-theme="dark"] {
-    --bg-primary: #1a1a1a;
-    --bg-secondary: #2d2d2d;
-    --bg-tertiary: #3a3a3a;
-    --text-primary: #f8f9fa;
-    --text-secondary: #adb5bd;
-    --text-muted: #6c757d;
-    --border-color: #404040;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.4);
-    --primary-light: #2d3561;
-    --success-light: #1a4d35;
-}
-
 /* Reset and base styles */
 * {
     box-sizing: border-box;
@@ -128,38 +113,6 @@ body {
 .settings-btn:hover {
     background-color: var(--bg-tertiary);
     transform: scale(1.05);
-}
-
-/* Theme toggle */
-.theme-toggle {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-sm);
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--transition);
-    color: var(--text-primary);
-}
-
-.theme-toggle:hover {
-    background-color: var(--bg-tertiary);
-    transform: scale(1.05);
-}
-
-.theme-toggle .moon-icon {
-    display: none;
-}
-
-[data-theme="dark"] .theme-toggle .sun-icon {
-    display: none;
-}
-
-[data-theme="dark"] .theme-toggle .moon-icon {
-    display: block;
 }
 
 /* Cards */
@@ -534,16 +487,12 @@ body.capturing .status-indicator {
 }
 
 .code-container {
-    background-color: #1e1e1e;
+    background-color: #f6f8fa;
     border-radius: var(--radius-sm);
     padding: 16px;
     margin-bottom: 16px;
     max-height: 300px;
     overflow: auto;
-}
-
-[data-theme="light"] .code-container {
-    background-color: #f6f8fa;
 }
 
 .code-container pre {
@@ -553,13 +502,9 @@ body.capturing .status-indicator {
 .code-container code {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 13px;
-    color: #e1e4e8;
+    color: #24292e;
     white-space: pre-wrap;
     word-break: break-word;
-}
-
-[data-theme="light"] .code-container code {
-    color: #24292e;
 }
 
 /* Animations */
