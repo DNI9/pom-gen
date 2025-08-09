@@ -1,6 +1,9 @@
 export interface CapturedElement {
   name: string;
   selector: string;
+  tagName: string;
+  attributes: Record<string, string>;
+  textContent?: string;
 }
 
 export type Language = 'Java' | 'JavaScript' | 'TypeScript';

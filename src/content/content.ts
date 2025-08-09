@@ -324,6 +324,15 @@ function generateElementName(element: HTMLElement, existingNames: string[]): str
     return finalName;
 }
 
+function getElementAttributes(element: HTMLElement): Record<string, string> {
+    const attributes: Record<string, string> = {};
+    for (let i = 0; i < element.attributes.length; i++) {
+        const attr = element.attributes[i];
+        attributes[attr.name] = attr.value;
+    }
+    return attributes;
+}
+
 function clickListener(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
@@ -350,9 +359,13 @@ function clickListener(event: MouseEvent) {
             // Generate meaningful name based on element attributes
             const elementName = generateElementName(element, existingNames);
             
+            // Capture complete element information
             const newElement = {
                 name: elementName,
                 selector: selector,
+                tagName: element.tagName.toLowerCase(),
+                attributes: getElementAttributes(element),
+                textContent: element.textContent?.trim().substring(0, 100) // Limit text content length
             };
             elements[url].push(newElement);
             chrome.storage.local.set({ elements });

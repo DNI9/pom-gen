@@ -82,13 +82,18 @@ async function generatePom(elements: CapturedElement[], language: Language, page
 }
 
 function createPrompt(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string, customPrompt?: string): string {
-    const elementsJson = JSON.stringify(
-        elements.reduce((obj, item) => {
-            obj[item.name] = item.selector;
-            return obj;
-        }, {} as Record<string, string>),
-        null, 2
-    );
+    // Create detailed elements information including all attributes
+    const elementsDetails = elements.map(element => {
+        return {
+            name: element.name,
+            selector: element.selector,
+            tagName: element.tagName,
+            attributes: element.attributes,
+            textContent: element.textContent
+        };
+    });
+    
+    const elementsJson = JSON.stringify(elementsDetails, null, 2);
 
     let instructions = '';
     
@@ -129,8 +134,20 @@ You are an expert test automation engineer. Your task is to generate a Page Obje
 
 **Page Name:** ${pageName}
 
-**Elements (JSON format of 'elementName': 'selector'):**
+**Elements with detailed information:**
 ${elementsJson}
+
+**IMPORTANT NAMING GUIDELINES:**
+- Review each element's details carefully (tagName, attributes, textContent).
+- If the provided 'name' field seems generic (e.g., 'button1', 'input2', 'container3'), analyze the element's context:
+  - Look at the element's attributes (id, class, data-testid, aria-label, etc.)
+  - Consider the element's text content
+  - Use the element's purpose based on its attributes and content
+- Generate more meaningful names based on the element's actual purpose. For example:
+  - Instead of 'button1', use 'submitButton' if it has type="submit"
+  - Instead of 'input2', use 'emailInput' if it has type="email" or placeholder="Email"
+  - Instead of 'container3', use 'navigationMenu' if it has class="nav-menu"
+- The generated method names should reflect the element's actual function in the application.
 
 **Instructions for ${language}:**
 ${instructions}

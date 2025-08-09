@@ -161,7 +161,10 @@ function setupEventListeners() {
     addElementButton?.addEventListener('click', () => {
         const newElement: CapturedElement = {
             name: `element${elements.length + 1}`,
-            selector: ''
+            selector: '',
+            tagName: 'div',
+            attributes: {},
+            textContent: ''
         };
         elements.push(newElement);
         saveElements();
