@@ -225,6 +225,105 @@ function getXPath(element: HTMLElement): string {
     return '';
 }
 
+function toCamelCase(str: string): string {
+    // Remove special characters and convert to camelCase
+    return str
+        .replace(/[^a-zA-Z0-9\s]/g, ' ') // Replace special chars with spaces
+        .split(/\s+/)
+        .filter(word => word.length > 0)
+        .map((word, index) => {
+            if (index === 0) {
+                return word.toLowerCase();
+            }
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join('');
+}
+
+function generateElementName(element: HTMLElement, existingNames: string[]): string {
+    let baseName = '';
+    const tagName = element.tagName.toLowerCase();
+    
+    // Priority 1: name attribute
+    if (element.getAttribute('name')) {
+        baseName = element.getAttribute('name')!;
+    }
+    // Priority 2: id attribute
+    else if (element.id) {
+        baseName = element.id;
+    }
+    // Priority 3: placeholder attribute (for inputs)
+    else if (element.getAttribute('placeholder')) {
+        baseName = element.getAttribute('placeholder')!;
+    }
+    // Priority 4: aria-label attribute
+    else if (element.getAttribute('aria-label')) {
+        baseName = element.getAttribute('aria-label')!;
+    }
+    // Priority 5: value attribute (for buttons and inputs)
+    else if ((tagName === 'button' || tagName === 'input') && element.getAttribute('value')) {
+        baseName = element.getAttribute('value')!;
+    }
+    // Priority 6: text content (for buttons, links, labels)
+    else if ((tagName === 'button' || tagName === 'a' || tagName === 'label') && element.textContent) {
+        baseName = element.textContent.trim().substring(0, 30); // Limit length
+    }
+    // Priority 7: alt attribute (for images)
+    else if (tagName === 'img' && element.getAttribute('alt')) {
+        baseName = element.getAttribute('alt')!;
+    }
+    // Priority 8: type attribute for inputs
+    else if (tagName === 'input' && element.getAttribute('type')) {
+        const inputType = element.getAttribute('type')!;
+        baseName = inputType + 'Input';
+    }
+    // Priority 9: Use tag name with specific prefixes
+    else {
+        const tagPrefixes: { [key: string]: string } = {
+            'button': 'button',
+            'input': 'input',
+            'a': 'link',
+            'img': 'image',
+            'div': 'container',
+            'span': 'text',
+            'p': 'paragraph',
+            'h1': 'heading',
+            'h2': 'subheading',
+            'h3': 'subheading',
+            'ul': 'list',
+            'li': 'listItem',
+            'table': 'table',
+            'form': 'form',
+            'select': 'dropdown',
+            'textarea': 'textArea'
+        };
+        baseName = tagPrefixes[tagName] || tagName;
+    }
+    
+    // Convert to camelCase
+    let elementName = toCamelCase(baseName);
+    
+    // Ensure the name starts with a letter
+    if (!/^[a-zA-Z]/.test(elementName)) {
+        elementName = tagName + elementName.charAt(0).toUpperCase() + elementName.slice(1);
+    }
+    
+    // If empty, use tag name
+    if (!elementName) {
+        elementName = tagName;
+    }
+    
+    // Ensure uniqueness by appending numbers if needed
+    let finalName = elementName;
+    let counter = 1;
+    while (existingNames.includes(finalName)) {
+        counter++;
+        finalName = `${elementName}${counter}`;
+    }
+    
+    return finalName;
+}
+
 function clickListener(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
@@ -244,8 +343,15 @@ function clickListener(event: MouseEvent) {
             if (!elements[url]) {
                 elements[url] = [];
             }
+            
+            // Get existing names to ensure uniqueness
+            const existingNames = elements[url].map((el: any) => el.name);
+            
+            // Generate meaningful name based on element attributes
+            const elementName = generateElementName(element, existingNames);
+            
             const newElement = {
-                name: `element${elements[url].length + 1}`,
+                name: elementName,
                 selector: selector,
             };
             elements[url].push(newElement);
