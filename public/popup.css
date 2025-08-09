@@ -29,6 +29,33 @@
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Dark theme colors */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Dark theme colors */
+        --bg-primary: #18191a;
+        --bg-secondary: #0a0a0b;
+        --bg-tertiary: #242526;
+        --text-primary: #e4e6eb;
+        --text-secondary: #b0b3b8;
+        --text-muted: #65676b;
+        --border-color: #3a3b3c;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.4);
+        
+        /* Accent colors - slightly adjusted for dark mode */
+        --primary: #6c7ff5;
+        --primary-hover: #5a6de3;
+        --primary-light: rgba(94, 114, 228, 0.15);
+        --success: #2dce89;
+        --success-light: rgba(45, 206, 137, 0.15);
+        --danger: #f5365c;
+        --danger-hover: #ec0c38;
+        --warning: #fb6340;
+        --info: #11cdef;
+    }
+}
+
 /* Reset and base styles */
 * {
     box-sizing: border-box;
@@ -82,10 +109,18 @@ body {
     font-size: 18px;
     font-weight: 600;
     margin: 0;
+    /* Fallback for browsers that don't support background-clip */
+    color: var(--primary);
+    /* Gradient text effect */
     background: linear-gradient(135deg, var(--primary) 0%, #667eea 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    /* Ensure no background shows through */
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    /* Fix for some rendering issues */
+    display: inline-block;
 }
 
 /* Header controls */
@@ -277,14 +312,26 @@ body.capturing .status-indicator {
 .btn-capture {
     position: relative;
     overflow: hidden;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
+
+.btn-capture:hover:not(:disabled) {
+    background-color: var(--primary);
+    color: white;
+    border-color: var(--primary);
 }
 
 .btn-capture.capturing {
     background-color: var(--danger);
+    color: white;
+    border-color: var(--danger);
 }
 
 .btn-capture.capturing:hover {
     background-color: var(--danger-hover);
+    border-color: var(--danger-hover);
 }
 
 .capture-icon {
@@ -487,7 +534,7 @@ body.capturing .status-indicator {
 }
 
 .code-container {
-    background-color: #f6f8fa;
+    background-color: var(--bg-secondary);
     border-radius: var(--radius-sm);
     padding: 16px;
     margin-bottom: 16px;
@@ -502,7 +549,7 @@ body.capturing .status-indicator {
 .code-container code {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 13px;
-    color: #24292e;
+    color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
 }
@@ -600,4 +647,65 @@ body.capturing .status-indicator {
 .btn-sm {
     padding: 6px 12px;
     font-size: 12px;
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+    /* Ensure body has dark background */
+    body {
+        background-color: var(--bg-secondary);
+    }
+    
+    /* Better gradient for dark mode */
+    .logo h1 {
+        /* Use solid color instead of gradient in dark mode to avoid rendering issues */
+        background: none;
+        -webkit-text-fill-color: var(--primary);
+        color: var(--primary);
+    }
+    
+    /* Dark mode header */
+    .header {
+        background-color: var(--bg-primary);
+        border-bottom-color: var(--border-color);
+    }
+    
+    /* Improved scrollbar for dark mode */
+    .elements-list-container::-webkit-scrollbar-track {
+        background: var(--bg-tertiary);
+    }
+    
+    .elements-list-container::-webkit-scrollbar-thumb {
+        background: var(--text-muted);
+    }
+    
+    .elements-list-container::-webkit-scrollbar-thumb:hover {
+        background: var(--text-secondary);
+    }
+    
+    /* Better input contrast in dark mode */
+    .input-field,
+    .select-field,
+    .guidelines-textarea {
+        background-color: var(--bg-tertiary);
+        border-color: var(--border-color);
+    }
+    
+    .input-field:focus,
+    .select-field:focus,
+    .guidelines-textarea:focus {
+        background-color: var(--bg-primary);
+        border-color: var(--primary);
+    }
+    
+    /* Adjust code syntax highlighting for dark mode */
+    .code-container {
+        background-color: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+    }
+    
+    /* Adjust empty state icon opacity for better visibility */
+    .empty-state svg {
+        opacity: 0.2;
+    }
 } 
