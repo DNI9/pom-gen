@@ -95,6 +95,35 @@ body {
     gap: 1rem;
 }
 
+.header-right .prompt-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    max-width: 600px;
+}
+
+.header-right .custom-prompt-input {
+    flex: 1;
+    padding: 0.625rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.header-right .custom-prompt-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.header-right .custom-prompt-input::placeholder {
+    color: var(--text-secondary);
+}
+
 /* Main Content */
 .editor-main {
     display: flex;

@@ -2,21 +2,49 @@ import { CapturedElement, Language } from '../shared/types';
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.type === 'GENERATE_POM') {
-        const { elements, language, pageName, customGuidelines } = request.payload;
-        generatePom(elements, language, pageName, customGuidelines)
+        const { elements, language, pageName, customGuidelines, customPrompt } = request.payload;
+        generatePom(elements, language, pageName, customGuidelines, customPrompt)
             .then(code => sendResponse({ code }))
             .catch(error => sendResponse({ error: error.message }));
         return true; // Indicates that the response is sent asynchronously
     }
 });
 
-async function generatePom(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string): Promise<string> {
+function detectLanguageFromPrompt(customPrompt?: string): Language | null {
+    if (!customPrompt) return null;
+    
+    const prompt = customPrompt.toLowerCase();
+    
+    // Look for explicit language conversion requests
+    const languagePatterns = [
+        { pattern: /(?:convert|change|rewrite|generate|make|use|switch)\s+(?:to|in|as|using)?\s*typescript/i, language: 'TypeScript' as Language },
+        { pattern: /(?:convert|change|rewrite|generate|make|use|switch)\s+(?:to|in|as|using)?\s*javascript/i, language: 'JavaScript' as Language },
+        { pattern: /(?:convert|change|rewrite|generate|make|use|switch)\s+(?:to|in|as|using)?\s*java(?!script)/i, language: 'Java' as Language },
+        { pattern: /^typescript[\s:]/i, language: 'TypeScript' as Language },
+        { pattern: /^javascript[\s:]/i, language: 'JavaScript' as Language },
+        { pattern: /^java[\s:]/i, language: 'Java' as Language },
+    ];
+    
+    for (const { pattern, language } of languagePatterns) {
+        if (pattern.test(customPrompt)) {
+            return language;
+        }
+    }
+    
+    return null;
+}
+
+async function generatePom(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string, customPrompt?: string): Promise<string> {
     const { apiKey } = await chrome.storage.local.get('apiKey');
     if (!apiKey) {
         throw new Error('API Key not found. Please set it in the extension popup.');
     }
 
-    const prompt = createPrompt(elements, language, pageName, customGuidelines);
+    // Detect language from custom prompt if specified
+    const detectedLanguage = detectLanguageFromPrompt(customPrompt);
+    const targetLanguage = detectedLanguage || language;
+
+    const prompt = createPrompt(elements, targetLanguage, pageName, customGuidelines, customPrompt);
     
     const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
@@ -53,7 +81,7 @@ async function generatePom(elements: CapturedElement[], language: Language, page
     }
 }
 
-function createPrompt(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string): string {
+function createPrompt(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string, customPrompt?: string): string {
     const elementsJson = JSON.stringify(
         elements.reduce((obj, item) => {
             obj[item.name] = item.selector;
@@ -107,6 +135,7 @@ ${elementsJson}
 **Instructions for ${language}:**
 ${instructions}
 
+${customPrompt ? `**Additional Requirements:**\n${customPrompt}\n` : ''}
 Generate only the code for the class file. Do not include any explanations, comments, or markdown formatting outside of the code itself.
     `;
-} 
+}

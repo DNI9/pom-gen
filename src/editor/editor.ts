@@ -9,13 +9,11 @@ declare global {
 // State management
 let elements: CapturedElement[] = [];
 let currentUrl: string = '';
-let currentLanguage: Language = 'Java';
 
 // DOM Elements
 const pageUrlElement = document.getElementById('pageUrl') as HTMLElement;
 const elementCountElement = document.getElementById('elementCount') as HTMLElement;
 const elementsListElement = document.getElementById('elementsList') as HTMLElement;
-const languageSelectElement = document.getElementById('languageSelect') as HTMLSelectElement;
 const regenerateCodeButton = document.getElementById('regenerateCode') as HTMLButtonElement;
 const addElementButton = document.getElementById('addElement') as HTMLButtonElement;
 const copyCodeButton = document.getElementById('copyCode') as HTMLButtonElement;
@@ -23,6 +21,7 @@ const downloadCodeButton = document.getElementById('downloadCode') as HTMLButton
 const customGuidelinesTextarea = document.getElementById('customGuidelines') as HTMLTextAreaElement;
 const codeContentElement = document.getElementById('codeContent') as HTMLElement;
 const codeLoadingElement = document.getElementById('codeLoading') as HTMLElement;
+const customPromptInput = document.getElementById('customPromptInput') as HTMLInputElement;
 
 // Initialize editor
 async function initializeEditor() {
@@ -43,13 +42,6 @@ async function initializeEditor() {
     const { customGuidelines } = await chrome.storage.local.get('customGuidelines');
     if (customGuidelines && customGuidelinesTextarea) {
         customGuidelinesTextarea.value = customGuidelines;
-    }
-    
-    // Load saved language preference
-    const { selectedLanguage } = await chrome.storage.local.get('selectedLanguage');
-    if (selectedLanguage && languageSelectElement) {
-        languageSelectElement.value = selectedLanguage;
-        currentLanguage = selectedLanguage as Language;
     }
     
     // Set up event listeners
@@ -156,13 +148,6 @@ async function saveElements() {
 }
 
 function setupEventListeners() {
-    // Language selector
-    languageSelectElement?.addEventListener('change', async (e) => {
-        currentLanguage = (e.target as HTMLSelectElement).value as Language;
-        await chrome.storage.local.set({ selectedLanguage: currentLanguage });
-        await generateCode();
-    });
-    
     // Regenerate code button
     regenerateCodeButton?.addEventListener('click', async () => {
         await generateCode();
@@ -219,11 +204,8 @@ function setupEventListeners() {
     downloadCodeButton?.addEventListener('click', () => {
         const codeElement = codeContentElement.querySelector('code');
         const code = codeElement?.textContent || '';
-        const extension = {
-            Java: 'java',
-            JavaScript: 'js',
-            TypeScript: 'ts',
-        }[currentLanguage];
+        // Default to Java extension, user can rename if needed
+        const extension = 'java';
         const pageName = currentUrl.split('/').pop()?.split('.')[0] || 'MyPage';
         
         const blob = new Blob([code], { type: 'text/plain' });
@@ -260,6 +242,7 @@ async function generateCode() {
     
     const pageName = currentUrl.split('/').pop()?.split('.')[0] || 'MyPage';
     const customGuidelines = customGuidelinesTextarea?.value || undefined;
+    const customPrompt = customPromptInput?.value || undefined;
     
     try {
         // Send message to background script
@@ -267,9 +250,10 @@ async function generateCode() {
             type: 'GENERATE_POM',
             payload: {
                 elements: elements,
-                language: currentLanguage,
+                language: 'Java' as Language, // Default to Java, user can specify different language in prompt
                 pageName: toPascalCase(pageName),
                 customGuidelines: customGuidelines,
+                customPrompt: customPrompt,
             },
         }, (response) => {
             if (response.error) {
@@ -309,12 +293,16 @@ function updateCodeDisplay(code: string) {
     if (codeElement) {
         codeElement.textContent = code;
         
-        // Update Prism language class based on current language
-        const languageClass = {
-            Java: 'language-java',
-            JavaScript: 'language-javascript',
-            TypeScript: 'language-typescript',
-        }[currentLanguage];
+        // Detect language from code content
+        let languageClass = 'language-java'; // Default to Java
+        
+        if (code.includes('function') || code.includes('const ') || code.includes('let ') || code.includes('var ')) {
+            if (code.includes('interface ') || code.includes(': string') || code.includes(': number') || code.includes('Promise<')) {
+                languageClass = 'language-typescript';
+            } else {
+                languageClass = 'language-javascript';
+            }
+        }
         
         codeElement.className = languageClass;
         

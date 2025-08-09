@@ -100,12 +100,13 @@
                 </div>
             </div>
             <div class="header-right">
-                <div class="language-selector">
-                    <select id="languageSelect" class="select-field">
-                        <option value="Java">Java</option>
-                        <option value="JavaScript">JavaScript</option>
-                        <option value="TypeScript">TypeScript</option>
-                    </select>
+                <div class="prompt-input-wrapper">
+                    <input 
+                        type="text" 
+                        id="customPromptInput" 
+                        class="custom-prompt-input" 
+                        placeholder="Enter custom instructions (e.g., 'Convert to TypeScript', 'Add error handling')"
+                    />
                 </div>
                 <button id="regenerateCode" class="btn btn-primary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">

@@ -12,6 +12,7 @@ export interface GeneratePomRequest {
     language: Language;
     pageName: string;
     customGuidelines?: string; // Add support for custom guidelines
+    customPrompt?: string; // Custom prompt to modify the generated code
   };
 }
 
