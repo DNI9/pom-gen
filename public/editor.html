@@ -144,15 +144,22 @@
                 </div>
 
                 <div class="guidelines-section">
-                    <h3>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M13.5 2L5.5 2C3.5 2 2 3.5 2 5.5L2 16.5C2 18.5 3.5 20 5.5 20H16.5C18.5 20 20 18.5 20 16.5V8.5L13.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <div class="guidelines-header">
+                        <h3>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M13.5 2L5.5 2C3.5 2 2 3.5 2 5.5L2 16.5C2 18.5 3.5 20 5.5 20H16.5C18.5 20 20 18.5 20 16.5V8.5L13.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Custom Guidelines
+                        </h3>
+                        <svg class="guidelines-toggle" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                        Custom Guidelines
-                    </h3>
-                    <textarea id="customGuidelines" class="guidelines-textarea" placeholder="Enter custom code generation instructions for your framework..."></textarea>
+                    </div>
+                    <div class="guidelines-content">
+                        <textarea id="customGuidelines" class="guidelines-textarea" placeholder="Enter custom code generation instructions for your framework..."></textarea>
+                    </div>
                 </div>
             </section>
 

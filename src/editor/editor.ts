@@ -176,6 +176,28 @@ function setupEventListeners() {
         }, 100);
     });
     
+    // Guidelines collapse/expand
+    const guidelinesHeader = document.querySelector('.guidelines-header') as HTMLElement;
+    const guidelinesSection = document.querySelector('.guidelines-section') as HTMLElement;
+    
+    if (guidelinesHeader && guidelinesSection) {
+        // Load collapsed state from storage, default to collapsed
+        chrome.storage.local.get('guidelinesCollapsed', (result) => {
+            // Default to collapsed if no saved state exists
+            const shouldCollapse = result.guidelinesCollapsed !== false;
+            if (shouldCollapse) {
+                guidelinesSection.classList.add('collapsed');
+            }
+        });
+        
+        // Add click handler
+        guidelinesHeader.addEventListener('click', () => {
+            const isCollapsed = guidelinesSection.classList.toggle('collapsed');
+            // Save collapsed state
+            chrome.storage.local.set({ guidelinesCollapsed: isCollapsed });
+        });
+    }
+    
     // Copy code button
     copyCodeButton?.addEventListener('click', async () => {
         const codeElement = codeContentElement.querySelector('code');

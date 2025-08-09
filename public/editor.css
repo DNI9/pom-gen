@@ -292,14 +292,50 @@ body {
     border-top: 1px solid var(--border-color);
 }
 
+.guidelines-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.guidelines-header:hover {
+    opacity: 0.8;
+}
+
 .guidelines-section h3 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
     font-weight: 600;
-    margin-bottom: 0.75rem;
+    margin: 0;
     color: var(--text-secondary);
+}
+
+.guidelines-toggle {
+    color: var(--text-secondary);
+    transition: transform 0.3s ease;
+}
+
+.guidelines-section.collapsed .guidelines-toggle {
+    transform: rotate(-90deg);
+}
+
+.guidelines-content {
+    margin-top: 0.75rem;
+    max-height: 500px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, margin-top 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
+}
+
+.guidelines-section.collapsed .guidelines-content {
+    max-height: 0;
+    margin-top: 0;
+    opacity: 0;
 }
 
 .guidelines-textarea {
