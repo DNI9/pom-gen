@@ -151,6 +151,10 @@ function setupEventListeners() {
     // Regenerate code button
     regenerateCodeButton?.addEventListener('click', async () => {
         await generateCode();
+        // Clear the custom prompt input after regenerating
+        if (customPromptInput) {
+            customPromptInput.value = '';
+        }
     });
     
     // Add element button
