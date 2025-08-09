@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POM Editor - Page Object Model Generator</title>
+    <link rel="stylesheet" href="editor.css">
+    <style>
+        /* Basic Prism theme for dark mode */
+        code[class*="language-"],
+        pre[class*="language-"] {
+            color: #f8f8f2;
+            background: none;
+            text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+            font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            text-align: left;
+            white-space: pre;
+            word-spacing: normal;
+            word-break: normal;
+            word-wrap: normal;
+            line-height: 1.5;
+            tab-size: 4;
+            hyphens: none;
+        }
+        .token.comment,
+        .token.prolog,
+        .token.doctype,
+        .token.cdata {
+            color: #6272a4;
+        }
+        .token.punctuation {
+            color: #f8f8f2;
+        }
+        .token.property,
+        .token.tag,
+        .token.constant,
+        .token.symbol,
+        .token.deleted {
+            color: #ff79c6;
+        }
+        .token.boolean,
+        .token.number {
+            color: #bd93f9;
+        }
+        .token.selector,
+        .token.attr-name,
+        .token.string,
+        .token.char,
+        .token.builtin,
+        .token.inserted {
+            color: #50fa7b;
+        }
+        .token.operator,
+        .token.entity,
+        .token.url,
+        .language-css .token.string,
+        .style .token.string,
+        .token.variable {
+            color: #f8f8f2;
+        }
+        .token.atrule,
+        .token.attr-value,
+        .token.function,
+        .token.class-name {
+            color: #f1fa8c;
+        }
+        .token.keyword {
+            color: #8be9fd;
+        }
+        .token.regex,
+        .token.important {
+            color: #ffb86c;
+        }
+        .token.important,
+        .token.bold {
+            font-weight: bold;
+        }
+        .token.italic {
+            font-style: italic;
+        }
+        .token.entity {
+            cursor: help;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <!-- Header -->
+        <header class="editor-header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg width="28" height="28" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.7134 10.1281L17.4668 10.6938C17.2864 11.1079 16.7136 11.1079 16.5331 10.6938L16.2866 10.1281C15.8471 9.11947 15.0555 8.31641 14.0677 7.87708L13.308 7.53922C12.8973 7.35653 12.8973 6.75881 13.308 6.57612L14.0252 6.25714C15.0384 5.80651 15.8442 4.97373 16.2761 3.93083L16.5293 3.31953C16.7058 2.89349 17.2942 2.89349 17.4706 3.31953L17.7238 3.93083C18.1558 4.97373 18.9616 5.80651 19.9748 6.25714L20.6919 6.57612C21.1027 6.75881 21.1027 7.35653 20.6919 7.53922L19.9323 7.87708C18.9445 8.31641 18.1529 9.11947 17.7134 10.1281ZM2.82843 12.0001L7.07107 16.2428L5.65685 17.657L0 12.0001L5.65685 6.34326L7.07107 7.75748L2.82843 12.0001ZM18.3429 17.6572L23.9998 12.0003L21.1714 9.17188L19.7571 10.5861L21.1714 12.0003L16.9287 16.2429L18.3429 17.6572Z"></path>
+                    </svg>
+                    <h1>POM Editor</h1>
+                </div>
+                <div class="page-info">
+                    <span class="page-url" id="pageUrl"></span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="language-selector">
+                    <select id="languageSelect" class="select-field">
+                        <option value="Java">Java</option>
+                        <option value="JavaScript">JavaScript</option>
+                        <option value="TypeScript">TypeScript</option>
+                    </select>
+                </div>
+                <button id="regenerateCode" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M13 2L3 14L12 13L11 22L21 10L12 11L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Regenerate Code
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="editor-main">
+            <!-- Elements Panel -->
+            <section class="elements-panel">
+                <div class="panel-header">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9 9H15M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Captured Elements
+                    </h2>
+                    <div class="panel-actions">
+                        <span class="element-count" id="elementCount">0</span>
+                        <button id="addElement" class="btn btn-icon" title="Add element manually">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="elements-list" id="elementsList">
+                    <!-- Elements will be dynamically added here -->
+                </div>
+
+                <div class="guidelines-section">
+                    <h3>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M13.5 2L5.5 2C3.5 2 2 3.5 2 5.5L2 16.5C2 18.5 3.5 20 5.5 20H16.5C18.5 20 20 18.5 20 16.5V8.5L13.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Custom Guidelines
+                    </h3>
+                    <textarea id="customGuidelines" class="guidelines-textarea" placeholder="Enter custom code generation instructions for your framework..."></textarea>
+                </div>
+            </section>
+
+            <!-- Code Panel -->
+            <section class="code-panel">
+                <div class="panel-header">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M16 18L22 12L16 6M8 6L2 12L8 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Generated Code
+                    </h2>
+                    <div class="panel-actions">
+                        <button id="copyCode" class="btn btn-icon" title="Copy to clipboard">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                        <button id="downloadCode" class="btn btn-icon" title="Download file">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="code-container">
+                    <div class="code-loading" id="codeLoading">
+                        <div class="spinner"></div>
+                        <p>Generating code...</p>
+                    </div>
+                    <pre class="code-content" id="codeContent"><code class="language-java"></code></pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-typescript.min.js"></script>
+    <script src="editor.js"></script>
+</body>
+</html> 

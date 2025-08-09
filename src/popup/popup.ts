@@ -1,4 +1,4 @@
-import { CapturedElement, Language } from '../shared/types';
+import { CapturedElement } from '../shared/types';
 
 let isCapturing = false;
 let capturedElements: CapturedElement[] = [];
@@ -9,14 +9,9 @@ const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 const saveApiKeyBtn = document.getElementById('saveApiKey') as HTMLButtonElement;
 const toggleCaptureBtn = document.getElementById('toggleCapture') as HTMLButtonElement;
 const elementsList = document.getElementById('elementsList') as HTMLUListElement;
-const languageSelect = document.getElementById('languageSelect') as HTMLSelectElement;
 const generatePomBtn = document.getElementById('generatePom') as HTMLButtonElement;
-const outputCode = document.getElementById('outputCode') as HTMLElement;
-const downloadCodeBtn = document.getElementById('downloadCode') as HTMLButtonElement;
 const captureStatus = document.getElementById('captureStatus') as HTMLElement;
 const elementCount = document.getElementById('elementCount') as HTMLElement;
-const outputCard = document.getElementById('outputCard') as HTMLElement;
-const copyCodeBtn = document.getElementById('copyCode') as HTMLButtonElement;
 const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const resetElementsBtn = document.getElementById('resetElements') as HTMLButtonElement;
 
@@ -112,9 +107,6 @@ resetElementsBtn.addEventListener('click', async () => {
     
     // Re-render the elements list
     renderElements();
-    
-    // Hide output card if it's visible
-    outputCard.style.display = 'none';
 });
 
 saveApiKeyBtn.addEventListener('click', () => {
@@ -157,79 +149,22 @@ toggleCaptureBtn.addEventListener('click', async () => {
 });
 
 generatePomBtn.addEventListener('click', async () => {
-    const language = languageSelect.value as Language;
-    const pageName = currentTab.url!.split('/').pop()?.split('.')[0] || 'MyPage';
-    
-    // Get custom guidelines if available
-    const { customGuidelines } = await chrome.storage.local.get('customGuidelines');
-    
-    outputCode.textContent = 'Generating...';
-    generatePomBtn.disabled = true;
-    outputCard.style.display = 'block';
-
-    chrome.runtime.sendMessage({
-        type: 'GENERATE_POM',
-        payload: {
-            elements: capturedElements,
-            language,
-            pageName: toPascalCase(pageName),
-            customGuidelines: customGuidelines || undefined,
-        },
-    }, (response) => {
-        if (response.error) {
-            outputCode.textContent = `Error: ${response.error}`;
-        } else {
-            outputCode.textContent = response.code;
-            downloadCodeBtn.disabled = false;
-        }
-        generatePomBtn.disabled = false;
-    });
-});
-
-copyCodeBtn.addEventListener('click', async () => {
-    const code = outputCode.textContent || '';
-    
-    try {
-        await navigator.clipboard.writeText(code);
-        
-        // Show success feedback
-        copyCodeBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        `;
-        
-        setTimeout(() => {
-            copyCodeBtn.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
-                    <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" stroke-width="2"/>
-                </svg>
-            `;
-        }, 2000);
-    } catch (err) {
-        console.error('Failed to copy code:', err);
+    // Stop capturing if active
+    if (isCapturing) {
+        isCapturing = false;
+        await chrome.storage.local.set({ capturing: false });
+        updateCaptureUI();
     }
+    
+    // Open editor in a new tab
+    const editorUrl = chrome.runtime.getURL(`editor.html?url=${encodeURIComponent(currentTab.url!)}`);
+    chrome.tabs.create({ url: editorUrl });
+    
+    // Close the popup
+    window.close();
 });
 
-downloadCodeBtn.addEventListener('click', () => {
-    const code = outputCode.textContent || '';
-    const language = languageSelect.value as Language;
-    const extension = {
-        Java: 'java',
-        JavaScript: 'js',
-        TypeScript: 'ts',
-    }[language];
-    const pageName = currentTab.url!.split('/').pop()?.split('.')[0] || 'MyPage';
 
-    const blob = new Blob([code], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${toPascalCase(pageName)}Page.${extension}`;
-    a.click();
-    URL.revokeObjectURL(url);
-});
 
 // Custom guidelines event listeners
 customGuidelinesToggle.addEventListener('click', () => {

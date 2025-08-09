@@ -99,24 +99,12 @@
                     </svg>
                 </button>
             </div>
-            <div class="generation-controls">
-                <div class="select-wrapper">
-                    <select id="languageSelect" class="select-field">
-                        <option value="Java">Java</option>
-                        <option value="JavaScript">JavaScript</option>
-                        <option value="TypeScript">TypeScript</option>
-                    </select>
-                    <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <button id="generatePom" class="btn btn-primary btn-generate" disabled>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M13 2L3 14L12 13L11 22L21 10L12 11L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Generate POM
-                </button>
-            </div>
+            <button id="generatePom" class="btn btn-primary btn-generate btn-block" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2L19 7M10 13H4C2.89543 13 2 12.1046 2 11V4C2 2.89543 2.89543 2 4 2H11C12.1046 2 13 2.89543 13 4V10M10 13L10 20C10 21.1046 10.8954 22 12 22H19C20.1046 22 21 21.1046 21 20V11C21 9.89543 20.1046 9 19 9L12 9M10 13L12 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Open Editor
+            </button>
             <div id="customGuidelinesSection" class="custom-guidelines-section" style="display: none;">
                 <label for="customGuidelines" class="guidelines-label">Custom Framework Guidelines:</label>
                 <textarea id="customGuidelines" class="guidelines-textarea" placeholder="Enter custom code generation instructions for your framework. For example:
@@ -128,29 +116,7 @@
             </div>
         </div>
 
-        <div class="card output-card" id="outputCard" style="display: none;">
-            <div class="card-header">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M16 18L22 12L16 6M8 6L2 12L8 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <h2>Generated Code</h2>
-                <button id="copyCode" class="btn btn-icon" title="Copy to clipboard">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
-                        <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="code-container">
-                <pre><code id="outputCode"></code></pre>
-            </div>
-            <button id="downloadCode" class="btn btn-secondary btn-block">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Download File
-            </button>
-        </div>
+
     </div>
     <script src="popup.js"></script>
 </body>
