@@ -286,6 +286,49 @@ body {
     color: white;
 }
 
+/* Input badge and editor */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    height: 24px;
+    background: rgba(34, 211, 238, 0.15);
+    color: #67e8f9;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.input-editor {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    align-items: center;
+}
+
+.input-editor label {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.input-editor .element-input-value {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.input-meta {
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
 /* Guidelines Section */
 .guidelines-section {
     padding: 1.5rem;

@@ -4,6 +4,7 @@ export interface CapturedElement {
   tagName: string;
   attributes: Record<string, string>;
   textContent?: string;
+  input?: CapturedInput; // Optional input capture metadata and value
 }
 
 export type Language = 'Java' | 'JavaScript' | 'TypeScript';
@@ -35,4 +36,29 @@ export interface GetElementsRequest {
     };
 }
 
-export type Message = GeneratePomRequest | UpdateElementsRequest | GetElementsRequest; 
+export type Message = GeneratePomRequest | UpdateElementsRequest | GetElementsRequest;
+
+export interface CapturedInput {
+  type:
+    | 'text'
+    | 'password'
+    | 'email'
+    | 'number'
+    | 'checkbox'
+    | 'radio'
+    | 'select-one'
+    | 'select-multiple'
+    | 'textarea'
+    | 'contenteditable'
+    | 'date'
+    | 'time'
+    | 'datetime-local'
+    | 'tel'
+    | 'url'
+    | 'color'
+    | 'range';
+  value: string | string[] | boolean;
+  nameAttr?: string;
+  placeholder?: string;
+  labelText?: string;
+} 

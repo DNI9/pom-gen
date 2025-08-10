@@ -95,10 +95,21 @@ function createElementItem(element: CapturedElement, index: number): HTMLElement
     const elementDiv = document.createElement('div');
     elementDiv.className = 'element-item';
     
+    const hasInput = !!element.input;
+    const inputBadge = hasInput ? `<span class="badge" title="Input captured">Input</span>` : '';
+    const inputEditor = hasInput
+        ? `<div class="input-editor">
+                <label>Value</label>
+                <input type="text" class="element-input-value" value="${Array.isArray(element.input!.value) ? element.input!.value.join(',') : String(element.input!.value)}" data-index="${index}" />
+                <span class="input-meta">${element.input!.type}${element.input!.placeholder ? ` • ${element.input!.placeholder}` : ''}${element.input!.labelText ? ` • ${element.input!.labelText}` : ''}</span>
+           </div>`
+        : '';
+
     elementDiv.innerHTML = `
         <div class="element-header">
             <span class="element-number">${index + 1}</span>
             <input type="text" class="element-name-input" value="${element.name}" placeholder="Element name" data-index="${index}" data-field="name">
+            ${inputBadge}
             <button class="element-delete" data-index="${index}" title="Delete element">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -106,16 +117,34 @@ function createElementItem(element: CapturedElement, index: number): HTMLElement
             </button>
         </div>
         <input type="text" class="element-selector-input" value="${element.selector}" placeholder="CSS selector or XPath" data-index="${index}" data-field="selector">
+        ${inputEditor}
     `;
     
     // Add event listeners
     const nameInput = elementDiv.querySelector('.element-name-input') as HTMLInputElement;
     const selectorInput = elementDiv.querySelector('.element-selector-input') as HTMLInputElement;
     const deleteButton = elementDiv.querySelector('.element-delete') as HTMLButtonElement;
+    const inputValueInput = elementDiv.querySelector('.element-input-value') as HTMLInputElement | null;
     
     nameInput.addEventListener('input', handleElementUpdate);
     selectorInput.addEventListener('input', handleElementUpdate);
     deleteButton.addEventListener('click', handleElementDelete);
+    
+    if (inputValueInput) {
+        inputValueInput.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            if (!elements[index].input) return;
+            const inputType = elements[index].input!.type;
+            if (inputType === 'select-multiple') {
+                elements[index].input!.value = value.split(',').map(v => v.trim());
+            } else if (inputType === 'checkbox' || inputType === 'radio') {
+                elements[index].input!.value = value.toLowerCase() === 'true';
+            } else {
+                elements[index].input!.value = value;
+            }
+            saveElements();
+        });
+    }
     
     return elementDiv;
 }

@@ -89,7 +89,14 @@ function createPrompt(elements: CapturedElement[], language: Language, pageName:
             selector: element.selector,
             tagName: element.tagName,
             attributes: element.attributes,
-            textContent: element.textContent
+            textContent: element.textContent,
+            input: element.input ? {
+                type: element.input.type,
+                value: element.input.value,
+                nameAttr: element.input.nameAttr,
+                placeholder: element.input.placeholder,
+                labelText: element.input.labelText,
+            } : undefined,
         };
     });
     
@@ -107,52 +114,61 @@ function createPrompt(elements: CapturedElement[], language: Language, pageName:
 - The class name should be \`${pageName}Page\`.
 - Use Selenium WebDriver and the PageFactory pattern.
 - For each element, create a private \`WebElement\` field with an \`@FindBy\` annotation using its CSS selector.
-- For each element, generate a public method to interact with it (e.g., \`clickLoginButton()\`, \`enterUsername(String username)\`).
-- Ensure all necessary imports (\`org.openqa.selenium.*\`) are included.`;
+- For each input element with captured value, also include a field in a separate immutable Data class \`${pageName}Data\` with appropriate types.
+- Generate public methods to set inputs from a \`${pageName}Data\` instance and to perform common actions (e.g., \`fillForm(${pageName}Data data)\`).
+- Ensure all necessary imports (\`org.openqa.selenium.*\`, \`org.openqa.selenium.support.*\`).`;
                 break;
             case 'JavaScript':
                 instructions = `
 - The class name should be \`${pageName}Page\`.
-- Use a common test framework syntax like WebdriverIO or Cypress.
-- Create a getter for each element that returns a selector object (e.g., \`get usernameInput() { return $('${'selector'}'); }\`).
-- Generate methods for interaction (e.g., \`async login(user, pass)\`).`;
+- Use a common test framework syntax like Playwright or WebdriverIO.
+- Create getters/locators for each element.
+- Also generate a plain data object type \`${pageName}Data\` for inputs; add a \`fill(data)\` helper to set values and a \`getDefaults()\` that returns captured defaults.`;
                 break;
             case 'TypeScript':
                 instructions = `
 - The class name should be \`${pageName}Page\`.
-- Use Playwright or a similar modern framework.
-- The class should have a private readonly \`page\` property of type \`Page\`.
-- For each element, create a private readonly locator property (e.g., \`private readonly usernameInput = this.page.locator('${'selector'}');\`).
-- Generate public async methods for interactions (e.g., \`async enterUsername(username: string): Promise<void>\`).
-- Include the necessary import for \`Page\` from \`@playwright/test\`.`;
+- Use Playwright with a private readonly \`page\: Page\`.
+- For each element, create a private readonly locator property.
+- Generate a \`${pageName}Data\` interface for input fields inferred from captured input types.
+- Generate public async methods: \`fill(data: ${pageName}Data)\`, and element-level setters (e.g., \`setEmail(value: string)\`).
+- Include necessary imports for \`Page\` from \`@playwright/test\`.`;
                 break;
         }
     }
 
+    const dataModelSection = `
+From the provided elements JSON, identify input-capable elements (those having an \`input\` object). For these, infer a data model named \`${pageName}Data\` with fields using appropriate types:
+- For checkbox/radio: boolean
+- For select-one: string
+- For select-multiple: string[]
+- For number/range: number or string if ambiguous
+- Otherwise: string
+Use element names to derive field names (camelCase). Include default values using the captured \`input.value\` when present.
+
+Then generate BOTH:
+1) The POM class \`${pageName}Page\` with locators and interaction methods.
+2) The data model (class or interface) \`${pageName}Data\` with defaults and, if applicable, a builder/static factory for defaults.
+If the language favors separate files, output them one after the other in a single response.
+`;
+
     return `
-You are an expert test automation engineer. Your task is to generate a Page Object Model (POM) class in ${language}.
+You are an expert test automation engineer. Your task is to generate a Page Object Model (POM) and a companion Data model in ${language}.
 
-**Page Name:** ${pageName}
+Page Name: ${pageName}
 
-**Elements with detailed information:**
+Elements with detailed information (including captured input values when available):
 ${elementsJson}
 
-**IMPORTANT NAMING GUIDELINES:**
-- Review each element's details carefully (tagName, attributes, textContent).
-- If the provided 'name' field seems generic (e.g., 'button1', 'input2', 'container3'), analyze the element's context:
-  - Look at the element's attributes (id, class, data-testid, aria-label, etc.)
-  - Consider the element's text content
-  - Use the element's purpose based on its attributes and content
-- Generate more meaningful names based on the element's actual purpose. For example:
-  - Instead of 'button1', use 'submitButton' if it has type="submit"
-  - Instead of 'input2', use 'emailInput' if it has type="email" or placeholder="Email"
-  - Instead of 'container3', use 'navigationMenu' if it has class="nav-menu"
-- The generated method names should reflect the element's actual function in the application.
+IMPORTANT NAMING GUIDELINES:
+- Review each element's details carefully (tagName, attributes, textContent, input metadata).
+- If a provided 'name' is generic, infer a more meaningful name based on context (id, class, aria-label, placeholder, value, label text).
+- Method names should reflect the element's purpose.
 
-**Instructions for ${language}:**
+Instructions for ${language}:
 ${instructions}
 
-${customPrompt ? `**Additional Requirements:**\n${customPrompt}\n` : ''}
-Generate only the code for the class file. Do not include any explanations, comments, or markdown formatting outside of the code itself.
-    `;
+${dataModelSection}
+${customPrompt ? `Additional Requirements:\n${customPrompt}\n` : ''}
+Generate only the code for the file(s). Do not include explanations or markdown fences.`;
 }

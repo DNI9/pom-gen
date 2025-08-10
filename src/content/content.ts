@@ -2,6 +2,8 @@ let overlay: HTMLDivElement | null = null;
 let highlightElement: HTMLDivElement | null = null;
 let tooltipElement: HTMLDivElement | null = null;
 let currentElement: HTMLElement | null = null;
+let captureStyleEl: HTMLStyleElement | null = null;
+let activeInputEl: HTMLElement | null = null;
 
 function createOverlay() {
     // Create main overlay container
@@ -58,6 +60,19 @@ function createOverlay() {
     overlay.appendChild(highlightElement);
     overlay.appendChild(tooltipElement);
     document.body.appendChild(overlay);
+
+    // Persistent styles for active input capture
+    if (!captureStyleEl) {
+        captureStyleEl = document.createElement('style');
+        captureStyleEl.textContent = `
+            .__pomgen2-capture-focus__ {
+                outline: 2px solid #22d3ee !important;
+                outline-offset: 2px !important;
+                transition: outline-color 0.2s ease;
+            }
+        `;
+        document.head.appendChild(captureStyleEl);
+    }
 }
 
 function updateHighlight(element: HTMLElement) {
@@ -228,7 +243,7 @@ function getXPath(element: HTMLElement): string {
 function toCamelCase(str: string): string {
     // Remove special characters and convert to camelCase
     return str
-        .replace(/[^a-zA-Z0-9\s]/g, ' ') // Replace special chars with spaces
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
         .split(/\s+/)
         .filter(word => word.length > 0)
         .map((word, index) => {
@@ -266,7 +281,7 @@ function generateElementName(element: HTMLElement, existingNames: string[]): str
     }
     // Priority 6: text content (for buttons, links, labels)
     else if ((tagName === 'button' || tagName === 'a' || tagName === 'label') && element.textContent) {
-        baseName = element.textContent.trim().substring(0, 30); // Limit length
+        baseName = element.textContent.trim().substring(0, 30);
     }
     // Priority 7: alt attribute (for images)
     else if (tagName === 'img' && element.getAttribute('alt')) {
@@ -333,16 +348,184 @@ function getElementAttributes(element: HTMLElement): Record<string, string> {
     return attributes;
 }
 
+function isInputLike(el: HTMLElement): boolean {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+    if (el.hasAttribute('contenteditable')) return true;
+    return false;
+}
+
+function getLabelTextFor(element: HTMLElement): string | undefined {
+    // Try aria-label
+    const aria = element.getAttribute('aria-label');
+    if (aria) return aria;
+    // Try <label for="id">
+    if (element.id) {
+        const label = document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
+        if (label) return (label.textContent || '').trim();
+    }
+    // Try wrapping label
+    let parent: HTMLElement | null = element;
+    while (parent && parent !== document.body) {
+        if (parent.tagName.toLowerCase() === 'label') {
+            return (parent.textContent || '').trim();
+        }
+        parent = parent.parentElement;
+    }
+    return undefined;
+}
+
+function readInputValue(element: HTMLElement): { type: string; value: string | string[] | boolean } {
+    const tag = element.tagName.toLowerCase();
+    if (tag === 'input') {
+        const input = element as HTMLInputElement;
+        const inputType = (input.type || 'text').toLowerCase();
+        switch (inputType) {
+            case 'checkbox':
+                return { type: 'checkbox', value: input.checked };
+            case 'radio':
+                return { type: 'radio', value: input.checked };
+            case 'number':
+                return { type: 'number', value: input.value };
+            case 'password':
+                return { type: 'password', value: input.value };
+            case 'email':
+                return { type: 'email', value: input.value };
+            case 'date':
+                return { type: 'date', value: input.value };
+            case 'time':
+                return { type: 'time', value: input.value };
+            case 'datetime-local':
+                return { type: 'datetime-local', value: input.value };
+            case 'tel':
+                return { type: 'tel', value: input.value };
+            case 'url':
+                return { type: 'url', value: input.value };
+            case 'color':
+                return { type: 'color', value: input.value };
+            case 'range':
+                return { type: 'range', value: input.value };
+            default:
+                return { type: 'text', value: input.value };
+        }
+    }
+    if (tag === 'textarea') {
+        const ta = element as HTMLTextAreaElement;
+        return { type: 'textarea', value: ta.value };
+    }
+    if (tag === 'select') {
+        const sel = element as HTMLSelectElement;
+        const values = Array.from(sel.selectedOptions).map((o) => o.value);
+        return { type: sel.multiple ? 'select-multiple' : 'select-one', value: sel.multiple ? values : (values[0] || '') };
+    }
+    if (element.hasAttribute('contenteditable')) {
+        return { type: 'contenteditable', value: (element.textContent || '').trim() };
+    }
+    return { type: 'text', value: '' };
+}
+
+function upsertCapturedElement(element: HTMLElement, selector: string, existing: any[]): { index: number } {
+    const idx = existing.findIndex((el) => el.selector === selector);
+    if (idx !== -1) {
+        return { index: idx };
+    }
+    const existingNames = existing.map((el: any) => el.name);
+    const elementName = generateElementName(element, existingNames);
+    const newElement = {
+        name: elementName,
+        selector: selector,
+        tagName: element.tagName.toLowerCase(),
+        attributes: getElementAttributes(element),
+        textContent: element.textContent?.trim().substring(0, 100),
+    };
+    existing.push(newElement);
+    return { index: existing.length - 1 };
+}
+
+function startInputCapture(target: HTMLElement) {
+    activeInputEl = target;
+    target.classList.add('__pomgen2-capture-focus__');
+
+    const selector = getCssSelector(target) || getXPath(target);
+    if (!selector) return;
+
+    chrome.storage.local.get('elements', (data) => {
+        const elements = data.elements || {};
+        const url = window.location.href;
+        if (!elements[url]) elements[url] = [];
+
+        const { index } = upsertCapturedElement(target, selector, elements[url]);
+        // attach input meta immediately
+        const { type, value } = readInputValue(target);
+        const inputMeta = {
+            type,
+            value,
+            nameAttr: target.getAttribute('name') || undefined,
+            placeholder: target.getAttribute('placeholder') || undefined,
+            labelText: getLabelTextFor(target),
+        };
+        elements[url][index].input = inputMeta;
+        chrome.storage.local.set({ elements });
+    });
+
+    // Attach listeners to keep value up to date during typing
+    const onInput = () => {
+        if (!activeInputEl) return;
+        const selector = getCssSelector(activeInputEl) || getXPath(activeInputEl);
+        if (!selector) return;
+        const { type, value } = readInputValue(activeInputEl);
+        chrome.storage.local.get('elements', (data) => {
+            const elements = data.elements || {};
+            const url = window.location.href;
+            if (!elements[url]) return;
+            const idx = elements[url].findIndex((el: any) => el.selector === selector);
+            if (idx !== -1) {
+                elements[url][idx].input = {
+                    ...(elements[url][idx].input || {}),
+                    type,
+                    value,
+                    nameAttr: activeInputEl!.getAttribute('name') || undefined,
+                    placeholder: activeInputEl!.getAttribute('placeholder') || undefined,
+                    labelText: getLabelTextFor(activeInputEl!),
+                };
+                chrome.storage.local.set({ elements });
+            }
+        });
+    };
+
+    const onBlur = () => {
+        if (!activeInputEl) return;
+        showSelectedAnimation(activeInputEl);
+        activeInputEl.classList.remove('__pomgen2-capture-focus__');
+        activeInputEl.removeEventListener('input', onInput);
+        activeInputEl.removeEventListener('change', onInput);
+        activeInputEl.removeEventListener('blur', onBlur, true);
+        activeInputEl = null;
+    };
+
+    target.addEventListener('input', onInput);
+    target.addEventListener('change', onInput);
+    target.addEventListener('blur', onBlur, true);
+}
+
 function clickListener(event: MouseEvent) {
+    const element = event.target as HTMLElement;
+
+    if (isInputLike(element)) {
+        // Allow default focus/interaction; start capturing on focus if not already
+        if (activeInputEl !== element) {
+            startInputCapture(element);
+        }
+        return; // Do not block
+    }
+
+    // For non-inputs, capture and prevent default behavior
     event.preventDefault();
     event.stopPropagation();
 
-    const element = event.target as HTMLElement;
-    
     // Show selection animation
     showSelectedAnimation(element);
 
-    // Use a robust selector, prefering CSS selector but falling back to XPath
     const selector = getCssSelector(element) || getXPath(element);
     
     if (selector) {
@@ -353,26 +536,21 @@ function clickListener(event: MouseEvent) {
                 elements[url] = [];
             }
             
-            // Get existing names to ensure uniqueness
             const existingNames = elements[url].map((el: any) => el.name);
-            
-            // Generate meaningful name based on element attributes
             const elementName = generateElementName(element, existingNames);
             
-            // Capture complete element information
             const newElement = {
                 name: elementName,
                 selector: selector,
                 tagName: element.tagName.toLowerCase(),
                 attributes: getElementAttributes(element),
-                textContent: element.textContent?.trim().substring(0, 100) // Limit text content length
+                textContent: element.textContent?.trim().substring(0, 100)
             };
             elements[url].push(newElement);
             chrome.storage.local.set({ elements });
         });
     }
     
-    // Hide highlight after selection
     hideHighlight();
 }
 
@@ -384,9 +562,16 @@ function mouseoverListener(event: MouseEvent) {
     }
 }
 
-function mouseoutListener(event: MouseEvent) {
+function mouseoutListener(_event: MouseEvent) {
     currentElement = null;
     hideHighlight();
+}
+
+function focusinListener(event: FocusEvent) {
+    const element = event.target as HTMLElement;
+    if (!isInputLike(element)) return;
+    if (activeInputEl === element) return;
+    startInputCapture(element);
 }
 
 function startCapturing() {
@@ -394,6 +579,7 @@ function startCapturing() {
     document.addEventListener('click', clickListener, true);
     document.addEventListener('mouseover', mouseoverListener);
     document.addEventListener('mouseout', mouseoutListener);
+    document.addEventListener('focusin', focusinListener, true);
 }
 
 function stopCapturing() {
@@ -401,12 +587,18 @@ function stopCapturing() {
         overlay.remove();
         overlay = null;
     }
+    if (captureStyleEl) {
+        captureStyleEl.remove();
+        captureStyleEl = null;
+    }
     highlightElement = null;
     tooltipElement = null;
     currentElement = null;
+    activeInputEl = null;
     document.removeEventListener('click', clickListener, true);
     document.removeEventListener('mouseover', mouseoverListener);
     document.removeEventListener('mouseout', mouseoutListener);
+    document.removeEventListener('focusin', focusinListener, true);
 }
 
 chrome.storage.local.get('capturing', ({ capturing }) => {
