@@ -13,7 +13,8 @@ let pomCode: string | undefined;
 let dataCode: string | undefined;
 let pomFileName: string | undefined;
 let dataFileName: string | undefined;
-let activeTab: 'pom' | 'data' = 'pom';
+let dataFileContent: string | undefined;
+let activeTab: 'pom' | 'data' | 'datafile' = 'pom';
 
 // DOM Elements
 const pageUrlElement = document.getElementById('pageUrl') as HTMLElement;
@@ -28,39 +29,33 @@ const codeContentElement = document.getElementById('codeContent') as HTMLElement
 const codeLoadingElement = document.getElementById('codeLoading') as HTMLElement;
 const customPromptInput = document.getElementById('customPromptInput') as HTMLInputElement;
 
-// Tabs container (create dynamically since HTML has one code block initially)
-let tabsContainer: HTMLDivElement | null = null;
+// Tabs container
 let pomPreEl: HTMLElement | null = null;
 let dataPreEl: HTMLElement | null = null;
+let dataFilePreEl: HTMLElement | null = null;
+let pomPaneEl: HTMLElement | null = null;
+let dataPaneEl: HTMLElement | null = null;
+let dataFilePaneEl: HTMLElement | null = null;
 
 // Initialize editor
 async function initializeEditor() {
-    // Get URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     currentUrl = urlParams.get('url') || '';
     
-    // Display page URL
     if (pageUrlElement && currentUrl) {
         pageUrlElement.textContent = currentUrl;
         pageUrlElement.title = currentUrl;
     }
     
-    // Load elements from storage
     await loadElements();
     
-    // Load custom guidelines
     const { customGuidelines } = await chrome.storage.local.get('customGuidelines');
     if (customGuidelines && customGuidelinesTextarea) {
         customGuidelinesTextarea.value = customGuidelines;
     }
     
-    // Set up event listeners
     setupEventListeners();
-    
-    // Prepare tabs UI
     setupTabsUi();
-
-    // Generate initial code
     await generateCode();
 }
 
@@ -68,15 +63,14 @@ function setupTabsUi() {
     const codeContainer = document.querySelector('.code-container') as HTMLElement;
     if (!codeContainer) return;
 
-    // Create tabs header
     const tabsHeader = document.createElement('div');
     tabsHeader.className = 'tabs-header';
     tabsHeader.innerHTML = `
-        <button class="tab-btn active" data-tab="pom">POM</button>
-        <button class="tab-btn" data-tab="data">Data</button>
+        <button class="tab-btn active" data-tab="pom">POM Class</button>
+        <button class="tab-btn" data-tab="data">Data Class</button>
+        <button class="tab-btn" data-tab="datafile">Data File</button>
     `;
 
-    // Create two code panes
     const pomPane = document.createElement('pre');
     pomPane.className = 'code-content';
     pomPane.style.display = 'block';
@@ -87,10 +81,16 @@ function setupTabsUi() {
     dataPane.style.display = 'none';
     dataPane.innerHTML = `<code class="language-java"></code>`;
 
+    const dataFilePane = document.createElement('pre');
+    dataFilePane.className = 'code-content';
+    dataFilePane.style.display = 'none';
+    dataFilePane.innerHTML = `<code class="language-javascript"></code>`;
+
     pomPreEl = pomPane.querySelector('code');
     dataPreEl = dataPane.querySelector('code');
+    dataFilePreEl = dataFilePane.querySelector('code');
+    pomPaneEl = pomPane; dataPaneEl = dataPane; dataFilePaneEl = dataFilePane;
 
-    // Replace existing codeContent with tabs
     const oldPre = document.getElementById('codeContent');
     if (oldPre) oldPre.remove();
 
@@ -98,18 +98,19 @@ function setupTabsUi() {
     codeContainer.insertBefore(tabsHeader, loadingEl?.nextSibling || null);
     codeContainer.appendChild(pomPane);
     codeContainer.appendChild(dataPane);
+    codeContainer.appendChild(dataFilePane);
 
-    // Tab switching
     tabsHeader.addEventListener('click', (e) => {
         const btn = (e.target as HTMLElement).closest('.tab-btn') as HTMLButtonElement;
         if (!btn) return;
-        const tab = btn.getAttribute('data-tab') as 'pom' | 'data';
+        const tab = btn.getAttribute('data-tab') as 'pom' | 'data' | 'datafile';
         if (!tab) return;
         activeTab = tab;
         tabsHeader.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         pomPane.style.display = tab === 'pom' ? 'block' : 'none';
         dataPane.style.display = tab === 'data' ? 'block' : 'none';
+        dataFilePane.style.display = tab === 'datafile' ? 'block' : 'none';
     });
 }
 
@@ -123,17 +124,9 @@ async function loadElements() {
 
 function renderElements() {
     if (!elementsListElement) return;
-    
-    // Update element count
-    if (elementCountElement) {
-        elementCountElement.textContent = elements.length.toString();
-    }
-    
-    // Clear existing elements
+    if (elementCountElement) elementCountElement.textContent = elements.length.toString();
     elementsListElement.innerHTML = '';
-    
     if (elements.length === 0) {
-        // Show empty state
         elementsListElement.innerHTML = `
             <div class="empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.3">
@@ -145,8 +138,6 @@ function renderElements() {
         `;
         return;
     }
-    
-    // Render each element
     elements.forEach((element, index) => {
         const elementItem = createElementItem(element, index);
         elementsListElement.appendChild(elementItem);
@@ -156,7 +147,6 @@ function renderElements() {
 function createElementItem(element: CapturedElement, index: number): HTMLElement {
     const elementDiv = document.createElement('div');
     elementDiv.className = 'element-item';
-    
     const hasInput = !!element.input;
     const inputBadge = hasInput ? `<span class="badge" title="Input captured">Input</span>` : '';
     const inputEditor = hasInput
@@ -166,7 +156,6 @@ function createElementItem(element: CapturedElement, index: number): HTMLElement
                 <span class="input-meta">${element.input!.type}${element.input!.placeholder ? ` • ${element.input!.placeholder}` : ''}${element.input!.labelText ? ` • ${element.input!.labelText}` : ''}</span>
            </div>`
         : '';
-
     elementDiv.innerHTML = `
         <div class="element-header">
             <span class="element-number">${index + 1}</span>
@@ -181,17 +170,13 @@ function createElementItem(element: CapturedElement, index: number): HTMLElement
         <input type="text" class="element-selector-input" value="${element.selector}" placeholder="CSS selector or XPath" data-index="${index}" data-field="selector">
         ${inputEditor}
     `;
-    
-    // Add event listeners
     const nameInput = elementDiv.querySelector('.element-name-input') as HTMLInputElement;
     const selectorInput = elementDiv.querySelector('.element-selector-input') as HTMLInputElement;
     const deleteButton = elementDiv.querySelector('.element-delete') as HTMLButtonElement;
     const inputValueInput = elementDiv.querySelector('.element-input-value') as HTMLInputElement | null;
-    
     nameInput.addEventListener('input', handleElementUpdate);
     selectorInput.addEventListener('input', handleElementUpdate);
     deleteButton.addEventListener('click', handleElementDelete);
-    
     if (inputValueInput) {
         inputValueInput.addEventListener('input', (e) => {
             const value = (e.target as HTMLInputElement).value;
@@ -207,7 +192,6 @@ function createElementItem(element: CapturedElement, index: number): HTMLElement
             saveElements();
         });
     }
-    
     return elementDiv;
 }
 
@@ -215,7 +199,6 @@ function handleElementUpdate(event: Event) {
     const input = event.target as HTMLInputElement;
     const index = parseInt(input.getAttribute('data-index')!);
     const field = input.getAttribute('data-field') as 'name' | 'selector';
-    
     if (elements[index]) {
         elements[index][field] = input.value;
         saveElements();
@@ -225,7 +208,6 @@ function handleElementUpdate(event: Event) {
 function handleElementDelete(event: Event) {
     const button = event.currentTarget as HTMLButtonElement;
     const index = parseInt(button.getAttribute('data-index')!);
-    
     elements.splice(index, 1);
     saveElements();
     renderElements();
@@ -239,16 +221,10 @@ async function saveElements() {
 }
 
 function setupEventListeners() {
-    // Regenerate code button
     regenerateCodeButton?.addEventListener('click', async () => {
         await generateCode();
-        // Clear the custom prompt input after regenerating
-        if (customPromptInput) {
-            customPromptInput.value = '';
-        }
+        if (customPromptInput) customPromptInput.value = '';
     });
-    
-    // Add element button
     addElementButton?.addEventListener('click', () => {
         const newElement: CapturedElement = {
             name: `element${elements.length + 1}`,
@@ -260,8 +236,6 @@ function setupEventListeners() {
         elements.push(newElement);
         saveElements();
         renderElements();
-        
-        // Focus on the new element's name input
         setTimeout(() => {
             const inputs = elementsListElement.querySelectorAll('.element-name-input');
             const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
@@ -269,32 +243,20 @@ function setupEventListeners() {
             lastInput?.select();
         }, 100);
     });
-    
-    // Guidelines collapse/expand
     const guidelinesHeader = document.querySelector('.guidelines-header') as HTMLElement;
     const guidelinesSection = document.querySelector('.guidelines-section') as HTMLElement;
-    
     if (guidelinesHeader && guidelinesSection) {
-        // Load collapsed state from storage, default to collapsed
         chrome.storage.local.get('guidelinesCollapsed', (result) => {
-            // Default to collapsed if no saved state exists
             const shouldCollapse = result.guidelinesCollapsed !== false;
-            if (shouldCollapse) {
-                guidelinesSection.classList.add('collapsed');
-            }
+            if (shouldCollapse) guidelinesSection.classList.add('collapsed');
         });
-        
-        // Add click handler
         guidelinesHeader.addEventListener('click', () => {
             const isCollapsed = guidelinesSection.classList.toggle('collapsed');
-            // Save collapsed state
             chrome.storage.local.set({ guidelinesCollapsed: isCollapsed });
         });
     }
-    
-    // Copy code button
     copyCodeButton?.addEventListener('click', async () => {
-        const code = activeTab === 'pom' ? (pomCode || '') : (dataCode || '');
+        const code = activeTab === 'pom' ? (pomCode || '') : activeTab === 'data' ? (dataCode || '') : (dataFileContent || '');
         try {
             await navigator.clipboard.writeText(code);
             copyCodeButton.innerHTML = `
@@ -314,11 +276,9 @@ function setupEventListeners() {
             console.error('Failed to copy code:', err);
         }
     });
-    
-    // Download code button
     downloadCodeButton?.addEventListener('click', () => {
-        const code = activeTab === 'pom' ? (pomCode || '') : (dataCode || '');
-        const filename = activeTab === 'pom' ? (pomFileName ?? defaultFileName('pom')) : (dataFileName ?? defaultFileName('data'));
+        const code = activeTab === 'pom' ? (pomCode || '') : activeTab === 'data' ? (dataCode || '') : (dataFileContent || '');
+        const filename = activeTab === 'pom' ? (pomFileName ?? defaultFileName('pom')) : activeTab === 'data' ? (dataFileName ?? defaultFileName('data')) : (dataFileName ?? defaultDataFileName());
         const blob = new Blob([code], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -327,8 +287,6 @@ function setupEventListeners() {
         a.click();
         URL.revokeObjectURL(url);
     });
-    
-    // Custom guidelines auto-save
     let guidelinesSaveTimeout: number;
     customGuidelinesTextarea?.addEventListener('input', () => {
         clearTimeout(guidelinesSaveTimeout);
@@ -340,38 +298,40 @@ function setupEventListeners() {
 
 function defaultFileName(kind: 'pom' | 'data'): string {
     const pageName = currentUrl.split('/').pop()?.split('.')[0] || 'MyPage';
-    const ext = guessExtensionForCode(activeTab === 'pom' ? (pomCode || '') : (dataCode || ''));
+    const ext = guessExtensionForCode(kind === 'pom' ? (pomCode || '') : (dataCode || ''));
     return `${toPascalCase(pageName)}${kind === 'pom' ? 'Page' : 'Data'}.${ext}`;
+}
+
+function defaultDataFileName(): string {
+    const pageName = currentUrl.split('/').pop()?.split('.')[0] || 'MyPage';
+    // Default JSON; YAML if content looks like YAML
+    const looksYaml = !!(dataFileContent && /:\s|^-\s/.test(dataFileContent));
+    const ext = looksYaml ? 'yaml' : 'json';
+    return `${toPascalCase(pageName)}Data.${ext}`;
 }
 
 function guessExtensionForCode(code: string): string {
     if (code.includes('class ') && code.includes('WebDriver')) return 'java';
     if (code.includes('import { Page }') || code.includes(': Page')) return 'ts';
     if (code.includes('module.exports') || code.includes('exports.')) return 'js';
-    // Fallback default to java
     return 'java';
 }
 
 async function generateCode() {
     if (elements.length === 0) {
-        updateCodeDisplays('// No elements to generate code for', '// No elements to generate code for');
+        updateCodeDisplays('// No elements to generate code for', '// No elements to generate code for', '');
         return;
     }
-    
-    // Show loading state
     codeLoadingElement.classList.add('active');
-    (pomPreEl?.parentElement as HTMLElement).style.display = 'none';
-    (dataPreEl?.parentElement as HTMLElement).style.display = 'none';
-    
+    (pomPaneEl as HTMLElement).style.display = 'none';
+    (dataPaneEl as HTMLElement).style.display = 'none';
+    (dataFilePaneEl as HTMLElement).style.display = 'none';
     regenerateCodeButton.disabled = true;
     regenerateCodeButton.textContent = 'Generating...';
-    
     const pageName = currentUrl.split('/').pop()?.split('.')[0] || 'MyPage';
     const customGuidelines = customGuidelinesTextarea?.value || undefined;
     const customPrompt = customPromptInput?.value || undefined;
-    
     try {
-        // Send message to background script
         chrome.runtime.sendMessage({
             type: 'GENERATE_POM',
             payload: {
@@ -383,27 +343,26 @@ async function generateCode() {
             },
         }, (response) => {
             if (response.error) {
-                updateCodeDisplays(`// Error: ${response.error}`, `// Error: ${response.error}`);
+                updateCodeDisplays(`// Error: ${response.error}`, `// Error: ${response.error}`, `// Error: ${response.error}`);
             } else if (response.pomCode && response.dataCode) {
                 pomCode = response.pomCode;
                 dataCode = response.dataCode;
                 pomFileName = response.pomFileName;
                 dataFileName = response.dataFileName;
-                updateCodeDisplays(pomCode || '', dataCode || '');
+                dataFileContent = response.dataFileContent;
+                updateCodeDisplays(pomCode || '', dataCode || '', dataFileContent || '');
             } else if (response.code) {
-                // fallback single blob
                 pomCode = response.code;
                 dataCode = '';
-                updateCodeDisplays(pomCode || '', dataCode || '');
+                dataFileContent = '';
+                updateCodeDisplays(pomCode || '', dataCode || '', dataFileContent || '');
             } else {
-                updateCodeDisplays('// No code returned', '// No code returned');
+                updateCodeDisplays('// No code returned', '// No code returned', '');
             }
-            
-            // Hide loading state
             codeLoadingElement.classList.remove('active');
-            (pomPreEl?.parentElement as HTMLElement).style.display = activeTab === 'pom' ? 'block' : 'none';
-            (dataPreEl?.parentElement as HTMLElement).style.display = activeTab === 'data' ? 'block' : 'none';
-            
+            (pomPaneEl as HTMLElement).style.display = activeTab === 'pom' ? 'block' : 'none';
+            (dataPaneEl as HTMLElement).style.display = activeTab === 'data' ? 'block' : 'none';
+            (dataFilePaneEl as HTMLElement).style.display = activeTab === 'datafile' ? 'block' : 'none';
             regenerateCodeButton.disabled = false;
             regenerateCodeButton.innerHTML = `
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -413,9 +372,9 @@ async function generateCode() {
             `;
         });
     } catch (error) {
-        updateCodeDisplays(`// Error: ${error}`, `// Error: ${error}`);
+        updateCodeDisplays(`// Error: ${error}`, `// Error: ${error}`, `// Error: ${error}`);
         codeLoadingElement.classList.remove('active');
-        (pomPreEl?.parentElement as HTMLElement).style.display = 'block';
+        (pomPaneEl as HTMLElement).style.display = 'block';
         regenerateCodeButton.disabled = false;
         regenerateCodeButton.innerHTML = `
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -430,7 +389,6 @@ function normalizeCode(code: string): string {
     if (!code) return '';
     let s = code.replace(/\r\n/g, '\n');
     if (!/\n/.test(s)) {
-        // Heuristics to expand single-line code into multiple lines
         s = s
             .replace(/;\s*import\s+/g, ';\nimport ')
             .replace(/\s*}\s*(public|private|protected|class|interface|export|async|function)/g, '}\n$1')
@@ -443,9 +401,10 @@ function normalizeCode(code: string): string {
     return s;
 }
 
-function updateCodeDisplays(pom: string, data: string) {
+function updateCodeDisplays(pom: string, data: string, dataFile: string) {
     const pomText = normalizeCode(pom || '');
     const dataText = normalizeCode(data || '');
+    const dataFileText = (dataFile || '').replace(/\r\n/g, '\n');
     if (pomPreEl) {
         pomPreEl.textContent = pomText;
         pomPreEl.className = detectLanguageClass(pomText || '');
@@ -455,6 +414,11 @@ function updateCodeDisplays(pom: string, data: string) {
         dataPreEl.textContent = dataText;
         dataPreEl.className = detectLanguageClass(dataText || '');
         if (window.Prism) window.Prism.highlightElement(dataPreEl);
+    }
+    if (dataFilePreEl) {
+        dataFilePreEl.textContent = dataFileText;
+        dataFilePreEl.className = detectDataFileLanguageClass(dataFileText);
+        if (window.Prism) window.Prism.highlightElement(dataFilePreEl);
     }
 }
 
@@ -471,6 +435,16 @@ function detectLanguageClass(code: string): string {
     return 'language-java';
 }
 
+function detectDataFileLanguageClass(text: string): string {
+    if (!text) return 'language-javascript';
+    try {
+        JSON.parse(text);
+        return 'language-javascript'; // Prism lacks json-highlighter by default; js is close
+    } catch {
+        return 'language-javascript';
+    }
+}
+
 function toPascalCase(str: string): string {
     return str.replace(/(^\w|-\w)/g, clearAndUpper).replace(/-/g, '');
 }
@@ -479,5 +453,4 @@ function clearAndUpper(text: string): string {
     return text.replace(/-/, "").toUpperCase();
 }
 
-// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeEditor); 

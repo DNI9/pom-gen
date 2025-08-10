@@ -15,7 +15,6 @@ function detectLanguageFromPrompt(customPrompt?: string): Language | null {
     
     const prompt = customPrompt.toLowerCase();
     
-    // Look for explicit language conversion requests
     const languagePatterns = [
         { pattern: /(?:convert|change|rewrite|generate|make|use|switch)\s+(?:to|in|as|using)?\s*typescript/i, language: 'TypeScript' as Language },
         { pattern: /(?:convert|change|rewrite|generate|make|use|switch)\s+(?:to|in|as|using)?\s*javascript/i, language: 'JavaScript' as Language },
@@ -34,7 +33,13 @@ function detectLanguageFromPrompt(customPrompt?: string): Language | null {
     return null;
 }
 
-async function generatePom(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string, customPrompt?: string): Promise<{ pomCode?: string; dataCode?: string; pomFileName?: string; dataFileName?: string; code?: string; }> {
+async function generatePom(
+    elements: CapturedElement[],
+    language: Language,
+    pageName: string,
+    customGuidelines?: string,
+    customPrompt?: string
+): Promise<{ pomCode?: string; dataCode?: string; pomFileName?: string; dataFileName?: string; dataFileContent?: string; code?: string; }> {
     const { apiKey } = await chrome.storage.local.get('apiKey');
     if (!apiKey) {
         throw new Error('API Key not found. Please set it in the extension popup.');
@@ -45,10 +50,11 @@ async function generatePom(elements: CapturedElement[], language: Language, page
 
     const prompt = createPrompt(elements, targetLanguage, pageName, customGuidelines, customPrompt);
 
-    // File name helpers
+    const hasAnyInput = elements.some(el => el.input !== undefined);
+
     const ext = targetLanguage === 'Java' ? 'java' : targetLanguage === 'TypeScript' ? 'ts' : 'js';
     const pomFileName = `${pageName}Page.${ext}`;
-    const dataFileName = `${pageName}Data.${ext}`;
+    const dataFileNameFallback = `${pageName}Data.json`;
     
     const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
@@ -70,10 +76,11 @@ async function generatePom(elements: CapturedElement[], language: Language, page
                             pomCode: { type: 'STRING' },
                             dataCode: { type: 'STRING' },
                             pomFileName: { type: 'STRING' },
-                            dataFileName: { type: 'STRING' }
+                            dataFileName: { type: 'STRING' },
+                            dataFileContent: { type: 'STRING' }
                         },
-                        required: ['pomCode', 'dataCode'],
-                        propertyOrdering: ['pomCode', 'dataCode', 'pomFileName', 'dataFileName']
+                        required: hasAnyInput ? ['pomCode', 'dataCode', 'dataFileContent'] : ['pomCode', 'dataCode'],
+                        propertyOrdering: ['pomCode', 'dataCode', 'pomFileName', 'dataFileName', 'dataFileContent']
                     }
                 }
             }),
@@ -87,13 +94,11 @@ async function generatePom(elements: CapturedElement[], language: Language, page
 
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        // Some models may still return markdown fences; sanitize and parse
         const cleaned = text.replace(/```(json)?\n/g, '').replace(/```\n?/g, '').trim();
         let parsed: any;
         try {
             parsed = JSON.parse(cleaned);
         } catch {
-            // Fallback: return as a single code blob if parsing fails
             return { code: cleaned };
         }
 
@@ -101,7 +106,8 @@ async function generatePom(elements: CapturedElement[], language: Language, page
             pomCode: parsed.pomCode,
             dataCode: parsed.dataCode,
             pomFileName: parsed.pomFileName || pomFileName,
-            dataFileName: parsed.dataFileName || dataFileName,
+            dataFileName: parsed.dataFileName || (parsed.dataFileContent ? dataFileNameFallback : undefined),
+            dataFileContent: parsed.dataFileContent,
         };
 
     } catch (error) {
@@ -110,8 +116,13 @@ async function generatePom(elements: CapturedElement[], language: Language, page
     }
 }
 
-function createPrompt(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string, customPrompt?: string): string {
-    // Create detailed elements information including all attributes
+function createPrompt(
+    elements: CapturedElement[],
+    language: Language,
+    pageName: string,
+    customGuidelines?: string,
+    customPrompt?: string
+): string {
     const elementsDetails = elements.map(element => {
         return {
             name: element.name,
@@ -141,43 +152,49 @@ function createPrompt(elements: CapturedElement[], language: Language, pageName:
                 instructions = `
 - The POM class name should be \`${pageName}Page\`.
 - Use Selenium WebDriver and PageFactory.
-- For each element, create a private \`WebElement\` with \`@FindBy\`.
-- The Data model class name should be \`${pageName}Data\` (immutable, appropriate field types).
-- Provide POM methods to fill inputs from a \`${pageName}Data\` instance.`;
+- Create \`WebElement\`s with \`@FindBy\`.
+- The Data class name should be \`${pageName}Data\` with appropriate types.
+- Provide POM helpers to fill inputs from a \`${pageName}Data\` instance.`;
                 break;
             case 'JavaScript':
                 instructions = `
-- The POM class name should be \`${pageName}Page\` using Playwright or WebdriverIO style locators.
-- Generate a plain data object type \`${pageName}Data\` for inputs; add a \`fill(data)\` helper.`;
+- The POM class name should be \`${pageName}Page\` using Playwright/WebdriverIO style locators.
+- Generate a data object type \`${pageName}Data\` and a \`fill(data)\` helper.`;
                 break;
             case 'TypeScript':
                 instructions = `
 - The POM class name should be \`${pageName}Page\` using Playwright with a private readonly \`page: Page\`.
-- Generate a \`${pageName}Data\` interface for input fields with inferred types.
-- Provide \`fill(data: ${pageName}Data)\` and element setters.`;
+- Generate a \`${pageName}Data\` interface for input fields with inferred types, plus \`fill(data)\`.`;
                 break;
         }
     }
 
     const dataModelSection = `
 From the elements JSON, identify input-capable elements (those with an \`input\` object). Infer a data model named \`${pageName}Data\` with fields using appropriate types and captured defaults.
+Also generate a separate test data file string named \"dataFileContent\" that contains default values for these fields.
+- Default format: JSON (pretty-printed)
+- If user guidelines or prompt explicitly request another format (e.g., YAML), produce that format instead.
+- Ensure the data keys match the \`${pageName}Data\` fields.
 `;
 
-    // Final prompt instructing strict fields for structured output
     return `
-You are an expert test automation engineer. Generate two separate source strings in ${language}:
-1) pomCode: Source code for the POM class \`${pageName}Page\`.
-2) dataCode: Source code for the Data model \`${pageName}Data\`.
+Output a JSON object with fields: pomCode, dataCode, optional pomFileName, optional dataFileName, and optional dataFileContent.
+- pomCode: Source for class \"${pageName}Page\" in ${language}.
+- dataCode: Source for \"${pageName}Data\" (class/interface) in ${language}.
+- dataFileContent: A standalone data file with defaults (JSON by default; use YAML or other only if explicitly requested by the user guidelines/prompt).
+- If you provide file names, use pomFileName and dataFileName; otherwise omit.
 
+Context:
 Page Name: ${pageName}
-
 Elements (with captured input values when available):
 ${elementsJson}
 
-Naming and behavior:
+Guidance:
 ${instructions}
 
 ${dataModelSection}
-Only include pure source code in \"pomCode\" and \"dataCode\" (no markdown fences, no commentary). If relevant, also suggest sensible file names in \"pomFileName\" and \"dataFileName\".
-`;
+Rules:
+- Do not include markdown fences or commentary in any field.
+- Return valid escaped JSON for the outer response.
+${customPrompt ? `User Addendum:\n${customPrompt}\n` : ''}`;
 }
