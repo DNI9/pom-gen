@@ -9,6 +9,11 @@ declare global {
 // State management
 let elements: CapturedElement[] = [];
 let currentUrl: string = '';
+let pomCode: string | undefined;
+let dataCode: string | undefined;
+let pomFileName: string | undefined;
+let dataFileName: string | undefined;
+let activeTab: 'pom' | 'data' = 'pom';
 
 // DOM Elements
 const pageUrlElement = document.getElementById('pageUrl') as HTMLElement;
@@ -22,6 +27,11 @@ const customGuidelinesTextarea = document.getElementById('customGuidelines') as 
 const codeContentElement = document.getElementById('codeContent') as HTMLElement;
 const codeLoadingElement = document.getElementById('codeLoading') as HTMLElement;
 const customPromptInput = document.getElementById('customPromptInput') as HTMLInputElement;
+
+// Tabs container (create dynamically since HTML has one code block initially)
+let tabsContainer: HTMLDivElement | null = null;
+let pomPreEl: HTMLElement | null = null;
+let dataPreEl: HTMLElement | null = null;
 
 // Initialize editor
 async function initializeEditor() {
@@ -47,8 +57,60 @@ async function initializeEditor() {
     // Set up event listeners
     setupEventListeners();
     
+    // Prepare tabs UI
+    setupTabsUi();
+
     // Generate initial code
     await generateCode();
+}
+
+function setupTabsUi() {
+    const codeContainer = document.querySelector('.code-container') as HTMLElement;
+    if (!codeContainer) return;
+
+    // Create tabs header
+    const tabsHeader = document.createElement('div');
+    tabsHeader.className = 'tabs-header';
+    tabsHeader.innerHTML = `
+        <button class="tab-btn active" data-tab="pom">POM</button>
+        <button class="tab-btn" data-tab="data">Data</button>
+    `;
+
+    // Create two code panes
+    const pomPane = document.createElement('pre');
+    pomPane.className = 'code-content';
+    pomPane.style.display = 'block';
+    pomPane.innerHTML = `<code class="language-java"></code>`;
+
+    const dataPane = document.createElement('pre');
+    dataPane.className = 'code-content';
+    dataPane.style.display = 'none';
+    dataPane.innerHTML = `<code class="language-java"></code>`;
+
+    pomPreEl = pomPane.querySelector('code');
+    dataPreEl = dataPane.querySelector('code');
+
+    // Replace existing codeContent with tabs
+    const oldPre = document.getElementById('codeContent');
+    if (oldPre) oldPre.remove();
+
+    const loadingEl = document.getElementById('codeLoading');
+    codeContainer.insertBefore(tabsHeader, loadingEl?.nextSibling || null);
+    codeContainer.appendChild(pomPane);
+    codeContainer.appendChild(dataPane);
+
+    // Tab switching
+    tabsHeader.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('.tab-btn') as HTMLButtonElement;
+        if (!btn) return;
+        const tab = btn.getAttribute('data-tab') as 'pom' | 'data';
+        if (!tab) return;
+        activeTab = tab;
+        tabsHeader.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        pomPane.style.display = tab === 'pom' ? 'block' : 'none';
+        dataPane.style.display = tab === 'data' ? 'block' : 'none';
+    });
 }
 
 async function loadElements() {
@@ -232,19 +294,14 @@ function setupEventListeners() {
     
     // Copy code button
     copyCodeButton?.addEventListener('click', async () => {
-        const codeElement = codeContentElement.querySelector('code');
-        const code = codeElement?.textContent || '';
-        
+        const code = activeTab === 'pom' ? (pomCode || '') : (dataCode || '');
         try {
             await navigator.clipboard.writeText(code);
-            
-            // Show success feedback
             copyCodeButton.innerHTML = `
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             `;
-            
             setTimeout(() => {
                 copyCodeButton.innerHTML = `
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -260,17 +317,13 @@ function setupEventListeners() {
     
     // Download code button
     downloadCodeButton?.addEventListener('click', () => {
-        const codeElement = codeContentElement.querySelector('code');
-        const code = codeElement?.textContent || '';
-        // Default to Java extension, user can rename if needed
-        const extension = 'java';
-        const pageName = currentUrl.split('/').pop()?.split('.')[0] || 'MyPage';
-        
+        const code = activeTab === 'pom' ? (pomCode || '') : (dataCode || '');
+        const filename = activeTab === 'pom' ? (pomFileName ?? defaultFileName('pom')) : (dataFileName ?? defaultFileName('data'));
         const blob = new Blob([code], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${toPascalCase(pageName)}Page.${extension}`;
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
     });
@@ -285,15 +338,30 @@ function setupEventListeners() {
     });
 }
 
+function defaultFileName(kind: 'pom' | 'data'): string {
+    const pageName = currentUrl.split('/').pop()?.split('.')[0] || 'MyPage';
+    const ext = guessExtensionForCode(activeTab === 'pom' ? (pomCode || '') : (dataCode || ''));
+    return `${toPascalCase(pageName)}${kind === 'pom' ? 'Page' : 'Data'}.${ext}`;
+}
+
+function guessExtensionForCode(code: string): string {
+    if (code.includes('class ') && code.includes('WebDriver')) return 'java';
+    if (code.includes('import { Page }') || code.includes(': Page')) return 'ts';
+    if (code.includes('module.exports') || code.includes('exports.')) return 'js';
+    // Fallback default to java
+    return 'java';
+}
+
 async function generateCode() {
     if (elements.length === 0) {
-        updateCodeDisplay('// No elements to generate code for');
+        updateCodeDisplays('// No elements to generate code for', '// No elements to generate code for');
         return;
     }
     
     // Show loading state
     codeLoadingElement.classList.add('active');
-    codeContentElement.style.display = 'none';
+    (pomPreEl?.parentElement as HTMLElement).style.display = 'none';
+    (dataPreEl?.parentElement as HTMLElement).style.display = 'none';
     
     regenerateCodeButton.disabled = true;
     regenerateCodeButton.textContent = 'Generating...';
@@ -308,21 +376,33 @@ async function generateCode() {
             type: 'GENERATE_POM',
             payload: {
                 elements: elements,
-                language: 'Java' as Language, // Default to Java, user can specify different language in prompt
+                language: 'Java' as Language,
                 pageName: toPascalCase(pageName),
                 customGuidelines: customGuidelines,
                 customPrompt: customPrompt,
             },
         }, (response) => {
             if (response.error) {
-                updateCodeDisplay(`// Error: ${response.error}`);
+                updateCodeDisplays(`// Error: ${response.error}`, `// Error: ${response.error}`);
+            } else if (response.pomCode && response.dataCode) {
+                pomCode = response.pomCode;
+                dataCode = response.dataCode;
+                pomFileName = response.pomFileName;
+                dataFileName = response.dataFileName;
+                updateCodeDisplays(pomCode || '', dataCode || '');
+            } else if (response.code) {
+                // fallback single blob
+                pomCode = response.code;
+                dataCode = '';
+                updateCodeDisplays(pomCode || '', dataCode || '');
             } else {
-                updateCodeDisplay(response.code);
+                updateCodeDisplays('// No code returned', '// No code returned');
             }
             
             // Hide loading state
             codeLoadingElement.classList.remove('active');
-            codeContentElement.style.display = 'block';
+            (pomPreEl?.parentElement as HTMLElement).style.display = activeTab === 'pom' ? 'block' : 'none';
+            (dataPreEl?.parentElement as HTMLElement).style.display = activeTab === 'data' ? 'block' : 'none';
             
             regenerateCodeButton.disabled = false;
             regenerateCodeButton.innerHTML = `
@@ -333,9 +413,9 @@ async function generateCode() {
             `;
         });
     } catch (error) {
-        updateCodeDisplay(`// Error: ${error}`);
+        updateCodeDisplays(`// Error: ${error}`, `// Error: ${error}`);
         codeLoadingElement.classList.remove('active');
-        codeContentElement.style.display = 'block';
+        (pomPreEl?.parentElement as HTMLElement).style.display = 'block';
         regenerateCodeButton.disabled = false;
         regenerateCodeButton.innerHTML = `
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -346,29 +426,49 @@ async function generateCode() {
     }
 }
 
-function updateCodeDisplay(code: string) {
-    const codeElement = codeContentElement.querySelector('code');
-    if (codeElement) {
-        codeElement.textContent = code;
-        
-        // Detect language from code content
-        let languageClass = 'language-java'; // Default to Java
-        
-        if (code.includes('function') || code.includes('const ') || code.includes('let ') || code.includes('var ')) {
-            if (code.includes('interface ') || code.includes(': string') || code.includes(': number') || code.includes('Promise<')) {
-                languageClass = 'language-typescript';
-            } else {
-                languageClass = 'language-javascript';
-            }
-        }
-        
-        codeElement.className = languageClass;
-        
-        // Re-highlight code with Prism
-        if (window.Prism) {
-            window.Prism.highlightElement(codeElement);
-        }
+function normalizeCode(code: string): string {
+    if (!code) return '';
+    let s = code.replace(/\r\n/g, '\n');
+    if (!/\n/.test(s)) {
+        // Heuristics to expand single-line code into multiple lines
+        s = s
+            .replace(/;\s*import\s+/g, ';\nimport ')
+            .replace(/\s*}\s*(public|private|protected|class|interface|export|async|function)/g, '}\n$1')
+            .replace(/;\s*(public|private|protected|class|interface|export|async|function)/g, ';\n$1')
+            .replace(/\)\s*\{/g, ') {\n')
+            .replace(/\{\s*/g, '{\n')
+            .replace(/\s*\}/g, '\n}')
+            .replace(/\n{3,}/g, '\n\n');
     }
+    return s;
+}
+
+function updateCodeDisplays(pom: string, data: string) {
+    const pomText = normalizeCode(pom || '');
+    const dataText = normalizeCode(data || '');
+    if (pomPreEl) {
+        pomPreEl.textContent = pomText;
+        pomPreEl.className = detectLanguageClass(pomText || '');
+        if (window.Prism) window.Prism.highlightElement(pomPreEl);
+    }
+    if (dataPreEl) {
+        dataPreEl.textContent = dataText;
+        dataPreEl.className = detectLanguageClass(dataText || '');
+        if (window.Prism) window.Prism.highlightElement(dataPreEl);
+    }
+}
+
+function detectLanguageClass(code: string): string {
+    if (!code) return 'language-java';
+    if (code.includes('class ') && code.includes('WebDriver')) return 'language-java';
+    if (code.includes('import { Page }') || code.includes(': Page')) return 'language-typescript';
+    if (code.includes('function ') || code.includes('const ') || code.includes('let ')) {
+        if (code.includes('interface ') || code.includes(': string') || code.includes(': number') || code.includes('Promise<')) {
+            return 'language-typescript';
+        }
+        return 'language-javascript';
+    }
+    return 'language-java';
 }
 
 function toPascalCase(str: string): string {

@@ -4,7 +4,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.type === 'GENERATE_POM') {
         const { elements, language, pageName, customGuidelines, customPrompt } = request.payload;
         generatePom(elements, language, pageName, customGuidelines, customPrompt)
-            .then(code => sendResponse({ code }))
+            .then(result => sendResponse(result))
             .catch(error => sendResponse({ error: error.message }));
         return true; // Indicates that the response is sent asynchronously
     }
@@ -34,17 +34,21 @@ function detectLanguageFromPrompt(customPrompt?: string): Language | null {
     return null;
 }
 
-async function generatePom(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string, customPrompt?: string): Promise<string> {
+async function generatePom(elements: CapturedElement[], language: Language, pageName: string, customGuidelines?: string, customPrompt?: string): Promise<{ pomCode?: string; dataCode?: string; pomFileName?: string; dataFileName?: string; code?: string; }> {
     const { apiKey } = await chrome.storage.local.get('apiKey');
     if (!apiKey) {
         throw new Error('API Key not found. Please set it in the extension popup.');
     }
 
-    // Detect language from custom prompt if specified
     const detectedLanguage = detectLanguageFromPrompt(customPrompt);
     const targetLanguage = detectedLanguage || language;
 
     const prompt = createPrompt(elements, targetLanguage, pageName, customGuidelines, customPrompt);
+
+    // File name helpers
+    const ext = targetLanguage === 'Java' ? 'java' : targetLanguage === 'TypeScript' ? 'ts' : 'js';
+    const pomFileName = `${pageName}Page.${ext}`;
+    const dataFileName = `${pageName}Data.${ext}`;
     
     const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
@@ -57,7 +61,21 @@ async function generatePom(elements: CapturedElement[], language: Language, page
             body: JSON.stringify({
                 contents: [{
                     parts: [{ text: prompt }]
-                }]
+                }],
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: 'OBJECT',
+                        properties: {
+                            pomCode: { type: 'STRING' },
+                            dataCode: { type: 'STRING' },
+                            pomFileName: { type: 'STRING' },
+                            dataFileName: { type: 'STRING' }
+                        },
+                        required: ['pomCode', 'dataCode'],
+                        propertyOrdering: ['pomCode', 'dataCode', 'pomFileName', 'dataFileName']
+                    }
+                }
             }),
         });
 
@@ -68,12 +86,23 @@ async function generatePom(elements: CapturedElement[], language: Language, page
         }
 
         const data = await response.json();
-        
-        // Extract text from the response
-        const code = data.candidates[0]?.content?.parts[0]?.text || '';
-        
-        // Clean up the response, removing markdown backticks if present
-        return code.replace(/```(java|javascript|typescript|)\n/g, '').replace(/```\n/g, '').replace(/```/g, '').trim();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        // Some models may still return markdown fences; sanitize and parse
+        const cleaned = text.replace(/```(json)?\n/g, '').replace(/```\n?/g, '').trim();
+        let parsed: any;
+        try {
+            parsed = JSON.parse(cleaned);
+        } catch {
+            // Fallback: return as a single code blob if parsing fails
+            return { code: cleaned };
+        }
+
+        return {
+            pomCode: parsed.pomCode,
+            dataCode: parsed.dataCode,
+            pomFileName: parsed.pomFileName || pomFileName,
+            dataFileName: parsed.dataFileName || dataFileName,
+        };
 
     } catch (error) {
         console.error('Failed to generate POM:', error);
@@ -104,71 +133,51 @@ function createPrompt(elements: CapturedElement[], language: Language, pageName:
 
     let instructions = '';
     
-    // Use custom guidelines if provided, otherwise use default instructions
     if (customGuidelines && customGuidelines.trim()) {
         instructions = customGuidelines;
     } else {
         switch (language) {
             case 'Java':
                 instructions = `
-- The class name should be \`${pageName}Page\`.
-- Use Selenium WebDriver and the PageFactory pattern.
-- For each element, create a private \`WebElement\` field with an \`@FindBy\` annotation using its CSS selector.
-- For each input element with captured value, also include a field in a separate immutable Data class \`${pageName}Data\` with appropriate types.
-- Generate public methods to set inputs from a \`${pageName}Data\` instance and to perform common actions (e.g., \`fillForm(${pageName}Data data)\`).
-- Ensure all necessary imports (\`org.openqa.selenium.*\`, \`org.openqa.selenium.support.*\`).`;
+- The POM class name should be \`${pageName}Page\`.
+- Use Selenium WebDriver and PageFactory.
+- For each element, create a private \`WebElement\` with \`@FindBy\`.
+- The Data model class name should be \`${pageName}Data\` (immutable, appropriate field types).
+- Provide POM methods to fill inputs from a \`${pageName}Data\` instance.`;
                 break;
             case 'JavaScript':
                 instructions = `
-- The class name should be \`${pageName}Page\`.
-- Use a common test framework syntax like Playwright or WebdriverIO.
-- Create getters/locators for each element.
-- Also generate a plain data object type \`${pageName}Data\` for inputs; add a \`fill(data)\` helper to set values and a \`getDefaults()\` that returns captured defaults.`;
+- The POM class name should be \`${pageName}Page\` using Playwright or WebdriverIO style locators.
+- Generate a plain data object type \`${pageName}Data\` for inputs; add a \`fill(data)\` helper.`;
                 break;
             case 'TypeScript':
                 instructions = `
-- The class name should be \`${pageName}Page\`.
-- Use Playwright with a private readonly \`page\: Page\`.
-- For each element, create a private readonly locator property.
-- Generate a \`${pageName}Data\` interface for input fields inferred from captured input types.
-- Generate public async methods: \`fill(data: ${pageName}Data)\`, and element-level setters (e.g., \`setEmail(value: string)\`).
-- Include necessary imports for \`Page\` from \`@playwright/test\`.`;
+- The POM class name should be \`${pageName}Page\` using Playwright with a private readonly \`page: Page\`.
+- Generate a \`${pageName}Data\` interface for input fields with inferred types.
+- Provide \`fill(data: ${pageName}Data)\` and element setters.`;
                 break;
         }
     }
 
     const dataModelSection = `
-From the provided elements JSON, identify input-capable elements (those having an \`input\` object). For these, infer a data model named \`${pageName}Data\` with fields using appropriate types:
-- For checkbox/radio: boolean
-- For select-one: string
-- For select-multiple: string[]
-- For number/range: number or string if ambiguous
-- Otherwise: string
-Use element names to derive field names (camelCase). Include default values using the captured \`input.value\` when present.
-
-Then generate BOTH:
-1) The POM class \`${pageName}Page\` with locators and interaction methods.
-2) The data model (class or interface) \`${pageName}Data\` with defaults and, if applicable, a builder/static factory for defaults.
-If the language favors separate files, output them one after the other in a single response.
+From the elements JSON, identify input-capable elements (those with an \`input\` object). Infer a data model named \`${pageName}Data\` with fields using appropriate types and captured defaults.
 `;
 
+    // Final prompt instructing strict fields for structured output
     return `
-You are an expert test automation engineer. Your task is to generate a Page Object Model (POM) and a companion Data model in ${language}.
+You are an expert test automation engineer. Generate two separate source strings in ${language}:
+1) pomCode: Source code for the POM class \`${pageName}Page\`.
+2) dataCode: Source code for the Data model \`${pageName}Data\`.
 
 Page Name: ${pageName}
 
-Elements with detailed information (including captured input values when available):
+Elements (with captured input values when available):
 ${elementsJson}
 
-IMPORTANT NAMING GUIDELINES:
-- Review each element's details carefully (tagName, attributes, textContent, input metadata).
-- If a provided 'name' is generic, infer a more meaningful name based on context (id, class, aria-label, placeholder, value, label text).
-- Method names should reflect the element's purpose.
-
-Instructions for ${language}:
+Naming and behavior:
 ${instructions}
 
 ${dataModelSection}
-${customPrompt ? `Additional Requirements:\n${customPrompt}\n` : ''}
-Generate only the code for the file(s). Do not include explanations or markdown fences.`;
+Only include pure source code in \"pomCode\" and \"dataCode\" (no markdown fences, no commentary). If relevant, also suggest sensible file names in \"pomFileName\" and \"dataFileName\".
+`;
 }
