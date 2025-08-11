@@ -25,7 +25,6 @@ const addElementButton = document.getElementById('addElement') as HTMLButtonElem
 const copyCodeButton = document.getElementById('copyCode') as HTMLButtonElement;
 const downloadCodeButton = document.getElementById('downloadCode') as HTMLButtonElement;
 const customGuidelinesTextarea = document.getElementById('customGuidelines') as HTMLTextAreaElement;
-const codeContentElement = document.getElementById('codeContent') as HTMLElement;
 const codeLoadingElement = document.getElementById('codeLoading') as HTMLElement;
 const customPromptInput = document.getElementById('customPromptInput') as HTMLInputElement;
 
@@ -60,16 +59,18 @@ async function initializeEditor() {
 }
 
 function setupTabsUi() {
+    const codeTabsContainer = document.getElementById('codeTabsContainer') as HTMLElement;
     const codeContainer = document.querySelector('.code-container') as HTMLElement;
-    if (!codeContainer) return;
+    if (!codeTabsContainer || !codeContainer) return;
 
     const tabsHeader = document.createElement('div');
-    tabsHeader.className = 'tabs-header';
+    tabsHeader.className = 'tabs-header tabs-header--editor';
     tabsHeader.innerHTML = `
         <button class="tab-btn active" data-tab="pom">POM Class</button>
         <button class="tab-btn" data-tab="data">Data Class</button>
         <button class="tab-btn" data-tab="datafile">Data File</button>
     `;
+    codeTabsContainer.appendChild(tabsHeader);
 
     const pomPane = document.createElement('pre');
     pomPane.className = 'code-content';
@@ -95,7 +96,6 @@ function setupTabsUi() {
     if (oldPre) oldPre.remove();
 
     const loadingEl = document.getElementById('codeLoading');
-    codeContainer.insertBefore(tabsHeader, loadingEl?.nextSibling || null);
     codeContainer.appendChild(pomPane);
     codeContainer.appendChild(dataPane);
     codeContainer.appendChild(dataFilePane);
