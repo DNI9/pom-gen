@@ -345,17 +345,19 @@ async function generateCode() {
             if (response.error) {
                 updateCodeDisplays(`// Error: ${response.error}`, `// Error: ${response.error}`, `// Error: ${response.error}`);
             } else if (response.pomCode && response.dataCode) {
-                pomCode = response.pomCode;
-                dataCode = response.dataCode;
+                // Normalize the code before storing to prevent double-escaping on regeneration
+                pomCode = normalizeCode(response.pomCode);
+                dataCode = normalizeCode(response.dataCode);
                 pomFileName = response.pomFileName;
                 dataFileName = response.dataFileName;
-                dataFileContent = response.dataFileContent;
-                updateCodeDisplays(pomCode || '', dataCode || '', dataFileContent || '');
+                dataFileContent = response.dataFileContent ? normalizeCode(response.dataFileContent) : '';
+                updateCodeDisplays(pomCode, dataCode, dataFileContent);
             } else if (response.code) {
-                pomCode = response.code;
+                // Legacy single code response
+                pomCode = normalizeCode(response.code);
                 dataCode = '';
                 dataFileContent = '';
-                updateCodeDisplays(pomCode || '', dataCode || '', dataFileContent || '');
+                updateCodeDisplays(pomCode, dataCode, dataFileContent);
             } else {
                 updateCodeDisplays('// No code returned', '// No code returned', '');
             }
@@ -387,37 +389,75 @@ async function generateCode() {
 
 function normalizeCode(code: string): string {
     if (!code) return '';
-    let s = code.replace(/\r\n/g, '\n');
-    if (!/\n/.test(s)) {
-        s = s
-            .replace(/;\s*import\s+/g, ';\nimport ')
-            .replace(/\s*}\s*(public|private|protected|class|interface|export|async|function)/g, '}\n$1')
-            .replace(/;\s*(public|private|protected|class|interface|export|async|function)/g, ';\n$1')
-            .replace(/\)\s*\{/g, ') {\n')
-            .replace(/\{\s*/g, '{\n')
-            .replace(/\s*\}/g, '\n}')
-            .replace(/\n{3,}/g, '\n\n');
+    
+    // Handle basic escape sequences that are commonly found in JSON responses
+    let normalized = code
+        .replace(/\\r\\n/g, '\n')  // Windows line endings
+        .replace(/\\n/g, '\n')      // Unix line endings
+        .replace(/\\t/g, '\t')      // Tabs
+        .replace(/\\"/g, '"')       // Escaped quotes
+        .replace(/\\\\/g, '\\');    // Escaped backslashes (do this last)
+    
+    // Handle any remaining \r\n sequences
+    normalized = normalized.replace(/\r\n/g, '\n');
+    
+    // Trim any excessive whitespace at the beginning and end
+    normalized = normalized.trim();
+    
+    // If code is still on a single line (no newlines), apply minimal formatting
+    // This is a fallback for when the API doesn't format properly
+    if (!normalized.includes('\n') && normalized.length > 100) {
+        normalized = applyMinimalFormatting(normalized);
     }
-    return s;
+    
+    return normalized;
+}
+
+function applyMinimalFormatting(code: string): string {
+    // Only apply minimal formatting if code appears to be minified
+    // This is a last resort fallback
+    return code
+        // Add newline after imports
+        .replace(/(import\s+[^;]+;)/g, '$1\n')
+        // Add newline before class/interface declarations
+        .replace(/(\s)(class|interface|export\s+class|export\s+interface|public\s+class)/g, '\n\n$2')
+        // Add newline after opening braces for classes/methods
+        .replace(/([{])\s*([^}])/g, '$1\n    $2')
+        // Add newline before closing braces
+        .replace(/([^{])\s*([}])/g, '$1\n$2')
+        // Add newline after semicolons (but not in for loops)
+        .replace(/;(?!\s*[)}])/g, ';\n')
+        // Clean up multiple newlines
+        .replace(/\n{3,}/g, '\n\n')
+        // Fix indentation issues (basic)
+        .replace(/\n\s*\n/g, '\n');
 }
 
 function updateCodeDisplays(pom: string, data: string, dataFile: string) {
     const pomText = normalizeCode(pom || '');
     const dataText = normalizeCode(data || '');
-    const dataFileText = (dataFile || '').replace(/\r\n/g, '\n');
+    const dataFileText = normalizeCode(dataFile || '');
+    
     if (pomPreEl) {
+        // Use textContent to avoid any HTML parsing issues
         pomPreEl.textContent = pomText;
-        pomPreEl.className = detectLanguageClass(pomText || '');
+        pomPreEl.className = detectLanguageClass(pomText);
+        // Force Prism to re-highlight the element
+        pomPreEl.removeAttribute('data-highlighted');
         if (window.Prism) window.Prism.highlightElement(pomPreEl);
     }
+    
     if (dataPreEl) {
         dataPreEl.textContent = dataText;
-        dataPreEl.className = detectLanguageClass(dataText || '');
+        dataPreEl.className = detectLanguageClass(dataText);
+        dataPreEl.removeAttribute('data-highlighted');
         if (window.Prism) window.Prism.highlightElement(dataPreEl);
     }
+    
     if (dataFilePreEl) {
         dataFilePreEl.textContent = dataFileText;
         dataFilePreEl.className = detectDataFileLanguageClass(dataFileText);
+        dataFilePreEl.removeAttribute('data-highlighted');
         if (window.Prism) window.Prism.highlightElement(dataFilePreEl);
     }
 }

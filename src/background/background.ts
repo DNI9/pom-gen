@@ -179,10 +179,20 @@ Also generate a separate test data file string named \"dataFileContent\" that co
 
     return `
 Output a JSON object with fields: pomCode, dataCode, optional pomFileName, optional dataFileName, and optional dataFileContent.
-- pomCode: Source for class \"${pageName}Page\" in ${language}.
-- dataCode: Source for \"${pageName}Data\" (class/interface) in ${language}.
+- pomCode: Source for class "${pageName}Page" in ${language}.
+- dataCode: Source for "${pageName}Data" (class/interface) in ${language}.
 - dataFileContent: A standalone data file with defaults (JSON by default; use YAML or other only if explicitly requested by the user guidelines/prompt).
 - If you provide file names, use pomFileName and dataFileName; otherwise omit.
+
+CRITICAL FORMATTING REQUIREMENTS:
+- The code MUST contain actual newline characters (\\n) between lines, not literal "\\n" strings
+- Each statement, import, method declaration must be on its own line
+- Do NOT put the entire code on a single line
+- The code should be immediately usable without any post-processing
+- Example of CORRECT formatting in JSON:
+  {
+    "pomCode": "import org.openqa.selenium.WebDriver;\\nimport org.openqa.selenium.WebElement;\\n\\npublic class LoginPage {\\n    private WebDriver driver;\\n\\n    public LoginPage(WebDriver driver) {\\n        this.driver = driver;\\n    }\\n}"
+  }
 
 Context:
 Page Name: ${pageName}
@@ -196,6 +206,7 @@ ${dataModelSection}
 
 Code Formatting Rules:
 - IMPORTANT: Generate properly formatted, readable code with correct indentation and line breaks.
+- Use actual newline characters (\\n) in the JSON string, not literal backslash-n
 - Each import statement must be on its own line.
 - Each method/function must start on a new line.
 - Use proper indentation (2 or 4 spaces consistently).
@@ -204,25 +215,12 @@ Code Formatting Rules:
 - Add blank lines between methods/functions for readability.
 - For Java: Follow standard Java code conventions.
 - For TypeScript/JavaScript: Follow standard JS/TS conventions.
-- Example of proper formatting:
-  import org.openqa.selenium.WebDriver;
-  import org.openqa.selenium.WebElement;
-  
-  public class LoginPage {
-    private WebDriver driver;
-    
-    public LoginPage(WebDriver driver) {
-      this.driver = driver;
-    }
-    
-    public void enterUsername(String username) {
-      usernameInput.sendKeys(username);
-    }
-  }
+- The code must be syntactically correct and ready to use.
 
 General Rules:
 - Do not include markdown fences or commentary in any field.
 - Return valid escaped JSON for the outer response.
-- Ensure all code is properly formatted with newlines and indentation.
+- Ensure all code is properly formatted with actual newline characters.
+- The code should be immediately compilable/runnable without any manual formatting.
 ${customPrompt ? `User Addendum:\n${customPrompt}\n` : ''}`;
 }
