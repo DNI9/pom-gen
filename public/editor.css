@@ -158,6 +158,14 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Special styling for code panel header with tabs */
+.code-panel .panel-header {
+    padding: 0.75rem 1.5rem;
+    background: var(--surface);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 .panel-header h2 {
     display: flex;
     align-items: center;
@@ -333,33 +341,102 @@ body {
 .tabs-header {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--background);
+    border-radius: var(--radius);
 }
 
 .tabs-header--editor {
     align-self: stretch;
-    gap: 0;
+    margin: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .tab-btn {
-    padding: 0.6rem 1rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
     background: transparent;
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 0.9rem;
-    border-bottom: 2px solid transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: calc(var(--radius-sm) - 2px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    min-width: 140px;
 }
 
-.tab-btn:hover {
+/* Tab button icons */
+.tab-btn svg {
+    width: 16px;
+    height: 16px;
+    transition: all 0.3s ease;
+    color: #64748B; /* Slate gray for better visibility */
+}
+
+.tab-btn:hover svg {
+    transform: translateY(-1px);
+    color: #94A3B8; /* Lighter slate on hover */
+}
+
+.tab-btn.active svg {
+    transform: scale(1.1);
+    color: white; /* White on blue background */
+}
+
+.tab-btn:hover:not(.active) {
     color: var(--text-primary);
-    background: transparent;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .tab-btn.active {
-    color: var(--text-primary);
-    border-bottom-color: var(--primary-color);
+    color: white;
+    background: var(--primary-color);
+    font-weight: 600;
+    box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.3),
+                0 0 0 1px rgba(99, 102, 241, 0.2);
 }
+
+.tab-btn.active:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 6px 16px -2px rgba(99, 102, 241, 0.4),
+                0 0 0 1px rgba(99, 102, 241, 0.3);
+}
+
+/* Tab indicators and animations */
+.tab-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.tab-btn:hover::before {
+    opacity: 1;
+}
+
+.tab-btn.active::before {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    opacity: 1;
+}
+
+/* Focus styles for accessibility */
+.tab-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Removed tab underline indicator */
 
 /* Guidelines Section */
 .guidelines-section {
@@ -433,11 +510,36 @@ body {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
+/* Code tabs container */
+.code-tabs-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* Tab count indicator */
+.tabs-header--editor::after {
+    content: attr(data-tab-count);
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    background: var(--secondary-color);
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 0.125rem 0.375rem;
+    border-radius: 999px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: none;
+}
+
 /* Code Container */
 .code-container {
     flex: 1;
     position: relative;
     overflow: hidden;
+    background: var(--surface);
+    border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .code-loading {
@@ -472,6 +574,45 @@ body {
     margin: 0;
     background: var(--surface);
     overflow: auto;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Tab transition enhancement */
+.tabs-header--editor {
+    position: relative;
+}
+
+/* Mobile responsive tabs */
+@media (max-width: 768px) {
+    .tabs-header--editor {
+        margin: 0.5rem;
+    }
+    
+    .tab-btn {
+        min-width: auto;
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+    }
+    
+    .tab-btn span {
+        display: none;
+    }
+    
+    .tab-btn svg {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 .code-content code {
