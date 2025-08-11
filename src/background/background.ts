@@ -193,8 +193,36 @@ Guidance:
 ${instructions}
 
 ${dataModelSection}
-Rules:
+
+Code Formatting Rules:
+- IMPORTANT: Generate properly formatted, readable code with correct indentation and line breaks.
+- Each import statement must be on its own line.
+- Each method/function must start on a new line.
+- Use proper indentation (2 or 4 spaces consistently).
+- Opening braces { should be followed by a newline.
+- Closing braces } should be on their own line.
+- Add blank lines between methods/functions for readability.
+- For Java: Follow standard Java code conventions.
+- For TypeScript/JavaScript: Follow standard JS/TS conventions.
+- Example of proper formatting:
+  import org.openqa.selenium.WebDriver;
+  import org.openqa.selenium.WebElement;
+  
+  public class LoginPage {
+    private WebDriver driver;
+    
+    public LoginPage(WebDriver driver) {
+      this.driver = driver;
+    }
+    
+    public void enterUsername(String username) {
+      usernameInput.sendKeys(username);
+    }
+  }
+
+General Rules:
 - Do not include markdown fences or commentary in any field.
 - Return valid escaped JSON for the outer response.
+- Ensure all code is properly formatted with newlines and indentation.
 ${customPrompt ? `User Addendum:\n${customPrompt}\n` : ''}`;
 }
