@@ -241,11 +241,6 @@ async function saveElements() {
 }
 
 function setupEventListeners() {
-    // Initially disable regenerate button if no custom prompt
-    if (regenerateCodeButton && customPromptInput) {
-        regenerateCodeButton.disabled = !customPromptInput.value.trim();
-    }
-    
     regenerateCodeButton?.addEventListener('click', async () => {
         await generateCode();
         if (customPromptInput) customPromptInput.value = '';
@@ -255,17 +250,8 @@ function setupEventListeners() {
     customPromptInput?.addEventListener('keypress', async (event) => {
         if (event.key === 'Enter') {
             event.preventDefault();
-            if (customPromptInput.value.trim()) {
-                await generateCode();
-                if (customPromptInput) customPromptInput.value = '';
-            }
-        }
-    });
-    
-    // Enable/disable regenerate button based on input content
-    customPromptInput?.addEventListener('input', () => {
-        if (regenerateCodeButton) {
-            regenerateCodeButton.disabled = !customPromptInput.value.trim();
+            await generateCode();
+            if (customPromptInput) customPromptInput.value = '';
         }
     });
     addElementButton?.addEventListener('click', () => {
@@ -413,7 +399,7 @@ async function generateCode() {
             (pomPaneEl as HTMLElement).style.display = activeTab === 'pom' ? 'block' : 'none';
             (dataPaneEl as HTMLElement).style.display = activeTab === 'data' ? 'block' : 'none';
             (dataFilePaneEl as HTMLElement).style.display = activeTab === 'datafile' ? 'block' : 'none';
-            regenerateCodeButton.disabled = !customPromptInput?.value.trim();
+            regenerateCodeButton.disabled = false;
             regenerateCodeButton.innerHTML = `
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M13 2L3 14L12 13L11 22L21 10L12 11L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -425,7 +411,7 @@ async function generateCode() {
         updateCodeDisplays(`// Error: ${error}`, `// Error: ${error}`, `// Error: ${error}`);
         codeLoadingElement.classList.remove('active');
         (pomPaneEl as HTMLElement).style.display = 'block';
-        regenerateCodeButton.disabled = !customPromptInput?.value.trim();
+        regenerateCodeButton.disabled = false;
         regenerateCodeButton.innerHTML = `
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path d="M13 2L3 14L12 13L11 22L21 10L12 11L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
